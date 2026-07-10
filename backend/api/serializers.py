@@ -142,3 +142,14 @@ class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "first_name", "last_name"]
+
+class LogSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="log_id", read_only=True)
+    class Meta:
+        model = Log
+        fields = ["id", "comments", "date", "respect", "behavior", "attendance"]
+    
+class PerformanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Log
+        fields = ["respect", "behavior", "attendance", "date"]

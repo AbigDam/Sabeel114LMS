@@ -36,6 +36,7 @@ export default function CreateClassAccountsScreen({ navigation }) {
   const [program, setProgram] = useState('');
   const [schedule, setSchedule] = useState('');
   const [room, setRoom] = useState('');
+  const [gender, setGender] = useState('');
   const [teachers, setTeachers] = useState([]);
   const [selectedTeachers, setSelectedTeachers] = useState([null]);
   // --- Student rows ---
@@ -92,6 +93,12 @@ function updateTeacher(index, teacherId) {
     return next;
   });
 }
+function updateGender(gender) {
+  if (number == "Male") {
+    setGender(true);
+  }
+  else{setGender(false);}
+}
   function validate() {
     const newErrors = {};
 
@@ -126,6 +133,7 @@ function updateTeacher(index, teacherId) {
       program: program.trim(),
       schedule: schedule.trim(),
       room: room.trim(),
+      gender: gender,
       teacher_ids: selectedTeachers.filter(id => id !== null),
       first_names: students.map((s) => s.first_name.trim()),
       last_names: students.map((s) => s.last_name.trim()),
@@ -250,6 +258,23 @@ function updateTeacher(index, teacherId) {
                 onChangeText={setRoom}
                 placeholder="e.g. Room 204"
                 error={errors.room}
+              />
+            </View>
+            <View style={styles.row2Item}>
+              <Dropdown
+                style={styles.dropdown}
+                placeholderStyle={styles.dropdownPlaceholder}
+                selectedTextStyle={styles.dropdownSelected}
+                itemTextStyle={styles.dropdownItem}
+                data={[
+                  { label: "Male", value: true },
+                  { label: "Female", value: false },
+                ]}
+                labelField="label"
+                valueField="value"
+                placeholder="Select a gender..."
+                value={gender}
+                onChange={(item) => setGender(item.value)}
               />
             </View>
           </View>

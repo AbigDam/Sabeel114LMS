@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-
+from django.utils.dateparse import parse_date
 User = get_user_model()
 
 LOG_TYPE_MAP = {
@@ -22,6 +22,63 @@ LOG_TYPE_MAP = {
 def test(request):
     return Response({"message": "Testing!  Testing!  Message Recived?"})
 
+class GetPerformanceView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, student_id):
+        days_back = int(request.query_params.get('days'))
+        student = get_object_or_404(User, id=student_id, role=2)
+        logs = Log.objects.filter(student=student).order_by('-date')[:days_back]
+        serializer = PerformanceSerializer(logs, many=True)
+        return Response(serializer.data)
+
+
+class GetWeeklyLogsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, student_id):
+        start_date = parse_date(request.query_params.get("start_date"))
+
+        if start_date is None:
+            return Response(
+                {"error": "A valid start_date (YYYY-MM-DD) is required."},
+                status=400,
+            )
+
+        student = get_object_or_404(User, id=student_id, role=2)
+
+        logs = (
+            Log.objects
+            .filter(student=student, date__gte=start_date)
+            .order_by("date")[:7]
+        )
+
+        serializer = LogSerializer(logs, many=True)
+        return Response(serializer.data)
+
+class GetChildren(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        parent_id = request.user.id
+        all_children = User.objects.filter(role=2)
+        children = []
+        for child in all_children:
+            if child.parents and parent_id in child.parents:
+                children.append(child)
+        serializer = StudentSerializer(children, many=True)
+        return Response(serializer.data)
+
+class MaleListView(APIView):
+    def get(self, request):
+        male_students = User.objects.filter(role=2, gender=True).order_by('score')
+        serializer = StudentSerializer(male_students, many=True)
+        return Response([male_student.first_name+male_student.last_name for male_student in male_students])
+
+class FemaleListView(APIView):
+    def get(self, request):
+        female_students = User.objects.filter(role=2, gender=False).order_by('score')
+        serializer = StudentSerializer(female_students, many=True)
+        return Response([female_student.first_name+female_student.last_name for female_student in female_students])
 
 class TeacherListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -81,7 +138,7 @@ class CurrentUser(APIView):
             "email": request.user.email,
             "username": request.user.username,
             "is_superuser": request.user.is_superuser,
-            "role_id": request.user.role,
+            "role": request.user.role,
         })
 
 class AnnouncementListView(ListAPIView):
@@ -216,7 +273,7 @@ class CreateClassAccounts(APIView):
         program = self.request.data.get("program") 
         schedule = self.request.data.get("schedule") 
         room = self.request.data.get("room") 
-
+        gender = self.request.data.get("gender")
         teachers =  self.request.data.get("teacher_ids") 
         
         classroom = Classroom.objects.create(class_name = class_name, teachers = teachers, program = program, schedule = schedule, room = room, status = True) 
@@ -232,7 +289,7 @@ class CreateClassAccounts(APIView):
             if User.objects.filter(username = first_name + last_name).exists():
                 user = User.objects.get(username = first_name + last_name)
             else:
-                user = User.objects.create_user(username = first_name + last_name, first_name = first_name, last_name = last_name, email = email, password = password, role = role_obj)
+                user = User.objects.create_user(username = first_name + last_name, first_name = first_name, last_name = last_name, email = email, gender = gender, password = password, role = role_obj)
             students.append(user.id)
             results["created"].append( {"username":username, "student_id":user.id}) 
         classroom.students = students

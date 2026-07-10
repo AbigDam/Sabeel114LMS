@@ -16,6 +16,7 @@ import LoadingScreen from './screens/LoadingScreen';
 import AddLogScreen from './screens/AddLogScreen';
 import StudentViewScreen from './screens/StudentViewScreen';
 import CreateClassAccountsScreen from './screens/CreateClassAccountsScreen.js';
+import LeaderboardScreen from './screens/LeaderboardScreen.js';
 import { AuthContext } from './context/AuthContext';
 import { colors, spacing, fonts, radii } from './constants/theme';
 
@@ -24,16 +25,6 @@ import { colors, spacing, fonts, radii } from './constants/theme';
 //import ManageCourses from './admin-portal/ManageCourses';
 
 const Stack = createNativeStackNavigator();
-
-/* ---------------- AUTH STACK ---------------- */
-function AuthStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Signup" component={SignupScreen} />
-    </Stack.Navigator>
-  );
-}
 
 /* ---------------- SMALL INLINE ERROR VIEW ---------------- */
 function AppLoadError({ message, onRetry }) {
@@ -46,42 +37,6 @@ function AppLoadError({ message, onRetry }) {
       </Pressable>
     </View>
   );
-}
-
-/* ---------------- APP STACK ---------------- */
-function AppStack({ user, userError, onRetryUser }) {
-
-  // console.log('Rendering AppStack with user:', user);
-
-  if (userError) {
-    return <AppLoadError message={userError} onRetry={onRetryUser} />;
-  }
-
-  switch (user.role_id) {
-    case 1: // Teacher
-      return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-          <Stack.Screen name="AddLog" component={AddLogScreen} />
-          <Stack.Screen name="StudentRoster" component={StudentViewScreen} />
-          <Stack.Screen name="CreateClassAccounts" component={CreateClassAccountsScreen} />
-        </Stack.Navigator>
-      );
-    case 3: // Admin
-      return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
-          {/* <Stack.Screen name="ManageCourses" component={ManageCourses} /> */}
-        </Stack.Navigator>
-      );
-    default:
-      return (
-        <AppLoadError
-          message={`No screen configured for role "${user.role_id}".`}
-          onRetry={onRetryUser}
-        />
-      );
-  }
 }
 
 /* ---------------- ROOT APP ---------------- */
@@ -120,7 +75,8 @@ export default function App() {
         if (remembered !== 'true') {
           // Not remembered — don't resurrect a session left over from a
           // previous run; require a fresh login.
-          await AsyncStorage.multiRemove(['authToken', 'refreshToken']);
+          await AsyncStorage.removeItem('authToken');
+          await AsyncStorage.removeItem('refreshToken');
         }
       }
 
@@ -179,25 +135,59 @@ export default function App() {
 
   if (loading) return <LoadingScreen label="Fetching login…" />;
 
+  // If we're authenticated but still resolving the user's role, keep
+  // showing a loading screen rather than mounting the navigator early.
+  const showAccountLoading = authenticated && user === null && !userError;
 
   return (
     <AuthContext.Provider value={{ authenticated, setAuthenticated, user, setUser, loading }}>
       <SafeAreaProvider>
         <NavigationContainer>
           <StatusBar style="light" />
-            {authenticated ? ( user === null ? (
+          {showAccountLoading ? (
             <LoadingScreen label="Signing you in..." />
           ) : (
-            <AppStack
-              user={user}
-              userError={userError}
-              onRetryUser={checkAuth}
-            />
-          )
-        ) : (
-          <AuthStack />
-        )}
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              {authenticated ? (
+                userError ? (
+                  <Stack.Screen name="AppError">
+                    {() => <AppLoadError message={userError} onRetry={checkAuth} />}
+                  </Stack.Screen>
+                ) : user.role_id === 1 ? (
+                  // Teacher
+                  <>
+                    <Stack.Screen name="Dashboard" component={DashboardScreen} />
+                    <Stack.Screen name="AddLog" component={AddLogScreen} />
+                    <Stack.Screen name="StudentRoster" component={StudentViewScreen} />
+                    <Stack.Screen name="CreateClassAccounts" component={CreateClassAccountsScreen} />
+                    <Stack.Screen name="AdminLeaderboard" component={AdminLeaderboardScreen} />
+                  </>
+                ) : user.role_id !==  1 ? (
+                  <>
+                    <Stack.Screen name="Dashboard" component={DashboardScreen} />
+                  </>
+                ) : (
+                  <Stack.Screen name="AppError">
+                    {() => (
+                      <AppLoadError
+                        message={`No screen configured for role "${user.role_id}".`}
+                        onRetry={checkAuth}
+                      />
+                    )}
+                  </Stack.Screen>
+                )
+              ) : (
+                // Not authenticated
+                <>
+                  <Stack.Screen name="Login" component={LoginScreen} />
+                  <Stack.Screen name="Signup" component={SignupScreen} />
+                </>
+              )}
 
+              {/* Always reachable, logged in or not. */}
+              <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            </Stack.Navigator>
+          )}
         </NavigationContainer>
       </SafeAreaProvider>
     </AuthContext.Provider>

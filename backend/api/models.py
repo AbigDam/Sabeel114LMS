@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 
 class User(AbstractUser):
     id = models.BigAutoField(primary_key=True)
-    role = models.IntegerField(null = True, blank = True) #Options:  0 - Teacher, 1 - Parent, 2 - Student, #3 - Admin
+    role = models.IntegerField(null = True, blank = True) #Options:  0 - Parent, 1 - Teacher, 2 - Student
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     parents = models.JSONField(list, blank=True, null=True) #List of user IDs (of parents)
     gender = models.BooleanField(null=True, blank=True) #True - Male, False - Female

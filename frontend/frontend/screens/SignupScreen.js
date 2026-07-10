@@ -156,6 +156,13 @@ async function handleSignup() {
           <Text style={styles.link}>Log in</Text>
         </Pressable>
       </View>
+
+
+      <Pressable onPress={() => navigation.navigate('Leaderboard')} hitSlop={8}>
+        <Text style={styles.link}>View Leaderboard</Text>
+      </Pressable>
+
+
     </AuthScene>
   );
 }
