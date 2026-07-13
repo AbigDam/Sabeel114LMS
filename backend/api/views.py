@@ -273,7 +273,7 @@ class CreateLogView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         log = serializer.save()
 
-        send_email("adamkhurshid@gmail.com", "message1")
+        send_email("adamkhurshid08@gmail.com", "message1")
 
         '''
         respect = "Did not meet expectations" if log.respect == 1 else "Meets expectations"
