@@ -186,7 +186,9 @@ export default function App() {
                 ) : (
                   // Parent or Student — just the dashboard, which renders
                   // the appropriate view internally based on user.role.
+                  <> 
                   <Stack.Screen name="Dashboard" component={DashboardScreen} />
+                  </>
                 )
               ) : (
                 // Not authenticated

@@ -8,8 +8,8 @@
 // -----------------------------------------------------------------------------
 
 export const brand = {
-  name: 'Al-Hidaya Center',
-  shortName: 'Al-Hidaya',
+  name: 'Sabeel 114',
+  shortName: 'Sabeel 114',
   tagline: 'Islamic Community',
   portal: 'School Portal',
 

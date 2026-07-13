@@ -220,7 +220,7 @@ function StudentDashboardBody({ teacher, navigation }) {
         </Text>
         <Pressable
           style={styles.publicLeaderboardButtonLarge}
-          onPress={() => navigation.navigate('PublicLeaderboard')}
+          onPress={() => navigation.navigate('Leaderboard')}
         >
           <Ionicons name="trophy-outline" size={22} color="#FFFFFF" />
           <Text style={styles.publicLeaderboardButtonLargeText}>View Public Leaderboard</Text>
@@ -290,15 +290,23 @@ function ParentDashboardBody({
         <View style={styles.coursesMainSection}>
           <View style={styles.hubSectionHeader}>
             <View style={styles.sectionTitleIndicator} />
-            <Text style={styles.hubSectionTitleText}>Your Students</Text>
-          </View>
+            <Text style={styles.hubSectionTitleText}>Your Children</Text>
 
+          </View>
+        <Pressable
+          style={styles.publicLeaderboardButtonLarge}
+          onPress={() => navigation.navigate('Leaderboard')}
+        >
+          <Ionicons name="trophy-outline" size={22} color="#FFFFFF" />
+          <Text style={styles.publicLeaderboardButtonLargeText}>View Public Leaderboard</Text>
+        </Pressable>
+          
           {studentsLoading ? (
             <ActivityIndicator color={BRONZE_COLORS.bronzeBright} style={{ marginVertical: 40 }} />
           ) : studentsError ? (
             <Text style={styles.errorTextLarge}>{studentsError}</Text>
           ) : students.length === 0 ? (
-            <Text style={styles.emptyStateText}>No students are linked to your account yet.</Text>
+            <Text style={styles.emptyStateText}>No children are linked to your account yet.</Text>
           ) : (
             <View style={styles.parentStudentList}>
               {students.map((student) => (

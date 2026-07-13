@@ -11,6 +11,8 @@ from rest_framework.generics import ListAPIView
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
+from django.utils import timezone
+
 User = get_user_model()
 
 LOG_TYPE_MAP = {
@@ -77,26 +79,63 @@ class GetChildren(APIView):
         serializer = StudentSerializer(children, many=True)
         return Response(serializer.data)
 
+def get_start_date(given_date):
+    if given_date.day == 1:
+        # Subtracting 1 day from the 1st always lands on the last day of the previous month
+        previous_month_end = given_date - timedelta(days=1)
+        return previous_month_end.replace(day=1)
+    return given_date.replace(day=1)
 
 
 class LeaderboardListView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
-        students = User.objects.filter(role=2).order_by('score')
+        date = request.query_params.get('date')
+        date = parse_date(date)
+        thirty_days_ago = get_start_date(date)
+        students = list(User.objects.filter(role=2))
+        for student in students:
+            logs = Log.objects.filter(student=student, date__lte=date, date__gte=thirty_days_ago)
+            student.score_at_date = sum(
+                log.respect + log.behavior + (1 if log.attendance == 0 else 0) for log in logs)
+        students.sort(key=lambda s: s.score_at_date, reverse=True)
         serializer = LeaderboardSerializer(students, many=True)
         return Response(serializer.data)
 
+def compute_score_at_date(student, as_of_date):
+    thirty_days_ago = get_start_date(as_of_date)
+    logs = Log.objects.filter(student=student, date__lte=as_of_date, date__gte=thirty_days_ago)
+    return sum(
+        log.respect + log.behavior + (1 if log.attendance == 0 else 0)
+        for log in logs
+    )
+
 class MaleListView(APIView):
     def get(self, request):
-        male_students = User.objects.filter(role=2, gender=True).order_by('score')
+        first_of_month = timezone.now().date().replace(day=1)
+
+        male_students = list(User.objects.filter(role=2, gender=True))
+        for student in male_students:
+            student.score_at_date = compute_score_at_date(student, first_of_month)
+
+        male_students.sort(key=lambda s: s.score_at_date)
+
         serializer = StudentSerializer(male_students, many=True)
-        return Response([male_student.first_name+male_student.last_name for male_student in male_students])
+        return Response([s.first_name + s.last_name for s in male_students])
+
 
 class FemaleListView(APIView):
     def get(self, request):
-        female_students = User.objects.filter(role=2, gender=False).order_by('score')
+        first_of_month = timezone.now().date().replace(day=1)
+
+        female_students = list(User.objects.filter(role=2, gender=False))
+        for student in female_students:
+            student.score_at_date = compute_score_at_date(student, first_of_month)
+
+        female_students.sort(key=lambda s: s.score_at_date)
+
         serializer = StudentSerializer(female_students, many=True)
-        return Response([female_student.first_name+female_student.last_name for female_student in female_students])
+        return Response([s.first_name + s.last_name for s in female_students])
 
 class ParentListView(APIView):
     permission_classes = [IsAuthenticated]

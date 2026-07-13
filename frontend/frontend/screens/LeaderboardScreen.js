@@ -77,6 +77,9 @@ export default function LeaderboardScreen({ navigation }) {
   const [femaleError, setFemaleError] = useState(null);
   const [activeTab, setActiveTab] = useState('male'); // only used on narrow screens
 
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
   useEffect(() => {
     async function loadMale() {
       try {
@@ -123,12 +126,18 @@ export default function LeaderboardScreen({ navigation }) {
         ) : (
           <View style={styles.backBtnPlaceholder} />
         )}
+
+
         <View style={styles.topBarCenter}>
           <Text style={styles.topBarTitle} numberOfLines={1}>Leaderboard</Text>
           <Text style={styles.topBarSub} numberOfLines={1}>{brand.name}</Text>
         </View>
         <View style={styles.backBtnPlaceholder} />
-      </View>
+        </View>
+        <View style={styles.topBarCenter}> 
+          <Text style = {styles.topBarTitle}>Showing positions as of {firstDayOfMonth.toLocaleDateString()}</Text>
+        </View>
+  
 
       {!isWide && (
         <View style={styles.tabRow}>

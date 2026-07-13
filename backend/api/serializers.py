@@ -156,10 +156,13 @@ class StudentSerializer(serializers.ModelSerializer):
 
 class LeaderboardSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
+    score = serializers.SerializerMethodField()
     class Meta:
         model = User
         fields = ["id", "first_name", "last_name", "username", "score", "gender"]
-
+    def get_score(self, obj):
+        return getattr(obj, 'score_at_date', obj.score)
+        
 
 class LogSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="log_id", read_only=True)
