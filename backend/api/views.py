@@ -287,9 +287,7 @@ class CreateLogView(generics.CreateAPIView):
             for parent_id in student.parents:
                 parent = User.objects.get(id=parent_id)
                 if parent.email_notifications:
-                    print(f"Sending email to: {parent.email}")
                     send_email(parent.email, log_message)
-                else:
                 
             
 
@@ -331,17 +329,6 @@ class UpdateLogView(generics.GenericAPIView):
             instance.behavior = None
             instance.attendance = request.data.get('attendance')
             instance.save()
-        log = instance
-        student = log.student
-        if student.parents:
-            for parent_id in student.parents:
-                parent = User.objects.get(id=parent_id)
-                if parent.email_notifications:
-                    print(f"Sending email to: {parent.email}")
-                    send_email(parent.email, log_message)
-                else:
-                
-
         
         log = instance
         respect = "Did not meet expectations" if log.respect == 1 else "Meets expectations"
@@ -351,6 +338,14 @@ class UpdateLogView(generics.GenericAPIView):
         else:
             log_message = f"A previous report was updated for your child: {log.student.first_name} {log.student.last_name}\n New Details:\nDate: {log.date}\nAttendance: 'Absent'"
          
+        log = instance
+        student = log.student
+        if student.parents:
+            for parent_id in student.parents:
+                parent = User.objects.get(id=parent_id)
+                if parent.email_notifications:
+                    send_email(parent.email, log_message)
+                
 
         return Response({"id": instance.log_id}, status=status.HTTP_200_OK)
 
