@@ -275,9 +275,9 @@ class CreateLogView(generics.CreateAPIView):
         respect = "Did not meet expectations" if log.respect == 1 else "Meets expectations"
         behavior = "Needs Attention" if log.behavior == 1 else "Good" if log.behavior == 2 else "Excellent"
         if log.attendance == 0:
-            log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\n Details:\nDate: {log.date}\nRespect: {respect}\nBehavior: {behavior}\nAttendance: 'Present' \nComments: {log.comments}"
+            log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nRespect: {respect}\nBehavior: {behavior}\nAttendance: 'Present' \nComments: {log.comments}"
         else:
-            log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\ Details:\nDate: {log.date}\nAttendance: 'Absent'"
+            log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nAttendance: 'Absent'"
         
         for parent_id in log.student.parents or []:
             parent = User.objects.filter(id=parent_id).first()
