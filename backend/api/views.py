@@ -419,6 +419,7 @@ class CreateClassAccounts(APIView):
         gender = self.request.data.get("gender")
         teachers =  self.request.data.get("teacher_ids") 
         parents =  self.request.data.get("parent_ids") 
+        parents = parents[0]
         
         classroom = Classroom.objects.create(class_name = class_name, teachers = teachers, program = program, schedule = schedule, room = room, status = True) 
         results = {"created": []}
