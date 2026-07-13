@@ -9,13 +9,14 @@ class User(AbstractUser):
     parents = models.JSONField(list, blank=True, null=True) #List of user IDs (of parents)
     gender = models.BooleanField(null=True, blank=True) #True - Male, False - Female
     score = models.IntegerField(default=0, null=True, blank=True)
+    email_notifications = models.BooleanField(default=False)
 
 class Notification(models.Model):
     notification_id = models.BigAutoField(primary_key=True)
     corresponding_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     type = models.CharField(max_length=255)
     message = models.CharField(max_length=1000)
-    is_read = models.BooleanField()
+    is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField()
 
 class Classroom(models.Model):

@@ -49,6 +49,40 @@ const ADMIN_COLORS = {
   text: '#F5F1EA',
 };
 
+/* ------------------------------------------------------------------ */
+/* Small reusable animated pill switch (replaces the old icon toggle)  */
+/* ------------------------------------------------------------------ */
+function AnimatedSwitch({ value, onValueChange, disabled }) {
+  const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: value ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false, // animating color + layout, not transform-only
+    }).start();
+  }, [value, anim]);
+
+  const trackColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#D1D5DB', BRONZE_COLORS.bronzeBright],
+  });
+
+  const knobTranslate = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 20],
+  });
+
+  return (
+    <Pressable onPress={() => !disabled && onValueChange(!value)} disabled={disabled} hitSlop={10}>
+      <Animated.View style={[styles.switchTrack, { backgroundColor: trackColor }]}>
+        <Animated.View style={[styles.switchKnob, { transform: [{ translateX: knobTranslate }] }]} />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 function LargeStatCard({ icon, value, label }) {
   return (
     <View style={styles.largeStatCard}>
@@ -125,7 +159,7 @@ function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
 
           <Pressable
             style={styles.publicLeaderboardButton}
-            onPress={() => navigation.navigate('PublicLeaderboard')}
+            onPress={() => navigation.navigate('Leaderboard')}
           >
             <Ionicons name="trophy-outline" size={20} color={BRONZE_COLORS.bronzeBright} />
             <Text style={styles.publicLeaderboardButtonText}>View Public Leaderboard</Text>
@@ -197,9 +231,51 @@ function StudentDashboardBody({ teacher, navigation }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Parent-only: email notification preference toggle                   */
+/* ------------------------------------------------------------------ */
+function EmailNotificationsCard({ enabled, onToggle, saving, error }) {
+  return (
+    <View style={styles.hubUtilityWidget}>
+      <View style={styles.widgetHeaderRow}>
+        <MaterialCommunityIcons name="email-outline" size={26} color={BRONZE_COLORS.bronzeAccent} />
+        <Text style={styles.widgetHeadingText}>Email Notifications</Text>
+      </View>
+
+      <View style={styles.notificationRow}>
+        <View style={styles.notificationRowText}>
+          <Text style={styles.notificationRowTitle}>Student email updates</Text>
+          <Text style={styles.notificationRowSubtitle}>
+            Receive emails about your student's scores, attendance, and teacher comments.
+          </Text>
+        </View>
+
+        <View style={styles.notificationSwitchArea}>
+          {saving ? (
+            <ActivityIndicator color={BRONZE_COLORS.bronzeBright} />
+          ) : (
+            <AnimatedSwitch value={enabled} onValueChange={onToggle} disabled={saving} />
+          )}
+        </View>
+      </View>
+
+      {error ? <Text style={styles.errorTextSmall}>{error}</Text> : null}
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Parent dashboard body                                               */
 /* ------------------------------------------------------------------ */
-function ParentDashboardBody({ teacher, students, studentsLoading, studentsError }) {
+function ParentDashboardBody({
+  teacher,
+  students,
+  studentsLoading,
+  studentsError,
+  emailNotifications,
+  onToggleEmailNotifications,
+  notificationsSaving,
+  notificationsError,
+}) {
   return (
     <>
       <View style={styles.hubWelcomeBanner}>
@@ -210,24 +286,37 @@ function ParentDashboardBody({ teacher, students, studentsLoading, studentsError
         </Text>
       </View>
 
-      <View style={styles.hubSectionHeader}>
-        <View style={styles.sectionTitleIndicator} />
-        <Text style={styles.hubSectionTitleText}>Your Students</Text>
-      </View>
+      <View style={styles.hubContentSplit}>
+        <View style={styles.coursesMainSection}>
+          <View style={styles.hubSectionHeader}>
+            <View style={styles.sectionTitleIndicator} />
+            <Text style={styles.hubSectionTitleText}>Your Students</Text>
+          </View>
 
-      {studentsLoading ? (
-        <ActivityIndicator color={BRONZE_COLORS.bronzeBright} style={{ marginVertical: 40 }} />
-      ) : studentsError ? (
-        <Text style={styles.errorTextLarge}>{studentsError}</Text>
-      ) : students.length === 0 ? (
-        <Text style={styles.emptyStateText}>No students are linked to your account yet.</Text>
-      ) : (
-        <View style={styles.parentStudentList}>
-          {students.map((student) => (
-            <ParentStudentCard key={student.id} student={student} />
-          ))}
+          {studentsLoading ? (
+            <ActivityIndicator color={BRONZE_COLORS.bronzeBright} style={{ marginVertical: 40 }} />
+          ) : studentsError ? (
+            <Text style={styles.errorTextLarge}>{studentsError}</Text>
+          ) : students.length === 0 ? (
+            <Text style={styles.emptyStateText}>No students are linked to your account yet.</Text>
+          ) : (
+            <View style={styles.parentStudentList}>
+              {students.map((student) => (
+                <ParentStudentCard key={student.id} student={student} />
+              ))}
+            </View>
+          )}
         </View>
-      )}
+
+        <View style={styles.utilitiesSideSection}>
+          <EmailNotificationsCard
+            enabled={emailNotifications}
+            onToggle={onToggleEmailNotifications}
+            saving={notificationsSaving}
+            error={notificationsError}
+          />
+        </View>
+      </View>
     </>
   );
 }
@@ -254,6 +343,10 @@ export default function DashboardScreen({ navigation }) {
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentsError, setStudentsError] = useState(null);
 
+  const [emailNotifications, setEmailNotifications] = useState(false);
+  const [notificationsSaving, setNotificationsSaving] = useState(false);
+  const [notificationsError, setNotificationsError] = useState(null);
+
   const { setAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -261,6 +354,7 @@ export default function DashboardScreen({ navigation }) {
       try {
         const data = await apiCall('get', 'current_user/');
         setTeacher(data);
+        setEmailNotifications(!!data?.email_notifications);
       } catch (error) {
         console.error(error);
       }
@@ -353,6 +447,25 @@ export default function DashboardScreen({ navigation }) {
     setMenuOpen(false);
   }
 
+  async function handleToggleEmailNotifications() {
+    const next = !emailNotifications;
+    setEmailNotifications(next); // optimistic
+    setNotificationsSaving(true);
+    setNotificationsError(null);
+    try {
+      await apiCall('patch', 'notifications/', {
+        data: { email_notifications: next },
+      });
+      setTeacher((prev) => (prev ? { ...prev, email_notifications: next } : prev));
+    } catch (error) {
+      console.error(error);
+      setEmailNotifications(!next); // revert on failure
+      setNotificationsError('Could not save your preference. Please try again.');
+    } finally {
+      setNotificationsSaving(false);
+    }
+  }
+
   const isTeacher = teacher?.role === ROLE_TEACHER;
   const isStudent = teacher?.role === ROLE_STUDENT;
   const isParent = teacher?.role === ROLE_PARENT;
@@ -433,6 +546,10 @@ export default function DashboardScreen({ navigation }) {
               students={students}
               studentsLoading={studentsLoading}
               studentsError={studentsError}
+              emailNotifications={emailNotifications}
+              onToggleEmailNotifications={handleToggleEmailNotifications}
+              notificationsSaving={notificationsSaving}
+              notificationsError={notificationsError}
             />
           ) : null}
         </ScrollView>
@@ -623,4 +740,34 @@ const styles = StyleSheet.create({
   parentStudentList: { gap: 4 },
   errorTextLarge: { fontSize: 16, color: '#B91C1C', marginVertical: 20 },
   emptyStateText: { fontSize: 16, color: BRONZE_COLORS.textMuted, marginVertical: 20 },
+
+  /* Parent — email notifications card */
+  notificationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  notificationRowText: { flex: 1 },
+  notificationRowTitle: { fontSize: 15, fontWeight: '700', color: BRONZE_COLORS.textDark },
+  notificationRowSubtitle: { fontSize: 13, color: BRONZE_COLORS.textMuted, marginTop: 4, lineHeight: 19 },
+  errorTextSmall: { fontSize: 13, color: '#B91C1C', marginTop: 12 },
+  notificationSwitchArea: { width: 46, alignItems: 'center', justifyContent: 'center' },
+  switchTrack: {
+    width: 46,
+    height: 26,
+    borderRadius: 13,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  switchKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
 });

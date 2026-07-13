@@ -1,4 +1,4 @@
-import { useState,useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ const BRONZE_COLORS = {
   success: '#01885B',
 };
 
-const emptyStudent = () => ({ first_name: '', last_name: '', email: '' });
+const emptyStudent = () => ({ first_name: '', last_name: '', email: '', parent_ids: [] });
 
 export default function CreateClassAccountsScreen({ navigation }) {
   // --- Class fields ---
@@ -39,6 +39,7 @@ export default function CreateClassAccountsScreen({ navigation }) {
   const [gender, setGender] = useState('');
   const [teachers, setTeachers] = useState([]);
   const [selectedTeachers, setSelectedTeachers] = useState([null]);
+  const [parents, setParents] = useState([]);
   // --- Student rows ---
   const [students, setStudents] = useState([emptyStudent()]);
 
@@ -48,17 +49,27 @@ export default function CreateClassAccountsScreen({ navigation }) {
   const [result, setResult] = useState(null); // holds created accounts after success
 
   useEffect(() => {
-  async function loadTeachers() {
-    try {
-      const response = await api.get("/teachers/");
-      setTeachers(response.data);
-    } catch (err) {
-      console.error(err);
+    async function loadTeachers() {
+      try {
+        const response = await api.get('/teachers/');
+        setTeachers(response.data);
+      } catch (err) {
+        console.error(err);
+      }
     }
-  }
 
-  loadTeachers();
-}, []);
+    async function loadParents() {
+      try {
+        const response = await api.get('/parents/');
+        setParents(response.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadTeachers();
+    loadParents();
+  }, []);
 
   function updateStudent(index, field, value) {
     setStudents((prev) => {
@@ -78,27 +89,45 @@ export default function CreateClassAccountsScreen({ navigation }) {
       return prev.filter((_, i) => i !== index);
     });
   }
-function addTeacherRow() {
-  setSelectedTeachers((prev) => [...prev, null]);
-}
 
-function removeTeacherRow(index) {
-  setSelectedTeachers((prev) => prev.filter((_, i) => i !== index));
-}
-
-function updateTeacher(index, teacherId) {
-  setSelectedTeachers((prev) => {
-    const next = [...prev];
-    next[index] = teacherId;
-    return next;
-  });
-}
-function updateGender(gender) {
-  if (number == "Male") {
-    setGender(true);
+  function addParentToStudent(studentIndex, parentId) {
+    if (parentId === null || parentId === undefined) return;
+    setStudents((prev) => {
+      const current = prev[studentIndex].parent_ids || [];
+      if (current.includes(parentId)) return prev;
+      const next = [...prev];
+      next[studentIndex] = { ...next[studentIndex], parent_ids: [...current, parentId] };
+      return next;
+    });
   }
-  else{setGender(false);}
-}
+
+  function removeParentFromStudent(studentIndex, parentId) {
+    setStudents((prev) => {
+      const next = [...prev];
+      next[studentIndex] = {
+        ...next[studentIndex],
+        parent_ids: (next[studentIndex].parent_ids || []).filter((id) => id !== parentId),
+      };
+      return next;
+    });
+  }
+
+  function addTeacherRow() {
+    setSelectedTeachers((prev) => [...prev, null]);
+  }
+
+  function removeTeacherRow(index) {
+    setSelectedTeachers((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateTeacher(index, teacherId) {
+    setSelectedTeachers((prev) => {
+      const next = [...prev];
+      next[index] = teacherId;
+      return next;
+    });
+  }
+
   function validate() {
     const newErrors = {};
 
@@ -134,10 +163,11 @@ function updateGender(gender) {
       schedule: schedule.trim(),
       room: room.trim(),
       gender: gender,
-      teacher_ids: selectedTeachers.filter(id => id !== null),
+      teacher_ids: selectedTeachers.filter((id) => id !== null),
       first_names: students.map((s) => s.first_name.trim()),
       last_names: students.map((s) => s.last_name.trim()),
-      emails: students.map((s) => s.email.trim() || ""),
+      emails: students.map((s) => s.email.trim() || ''),
+      parent_ids: students.map((s) => s.parent_ids || []),
     };
 
     try {
@@ -157,6 +187,12 @@ function updateGender(gender) {
 
   function handleDoneViewResult() {
     navigation.goBack();
+  }
+
+  function parentLabel(parent) {
+    if (!parent) return 'Parent';
+    const name = `${parent.first_name || ''} ${parent.last_name || ''}`.trim();
+    return name || parent.username || 'Parent';
   }
 
   // --- Success screen: show created usernames/IDs ---
@@ -267,8 +303,8 @@ function updateGender(gender) {
                 selectedTextStyle={styles.dropdownSelected}
                 itemTextStyle={styles.dropdownItem}
                 data={[
-                  { label: "Male", value: true },
-                  { label: "Female", value: false },
+                  { label: 'Male', value: true },
+                  { label: 'Female', value: false },
                 ]}
                 labelField="label"
                 valueField="value"
@@ -285,53 +321,38 @@ function updateGender(gender) {
         </View>
 
         {selectedTeachers.map((teacherId, index) => (
-            <View key={index} style={styles.teacherCard}>
-              <View style={styles.studentCardHeader}>
-                <Text style={styles.studentCardHeading}>
-                  Teacher {index + 1}
-                </Text>
+          <View key={index} style={styles.teacherCard}>
+            <View style={styles.studentCardHeader}>
+              <Text style={styles.studentCardHeading}>Teacher {index + 1}</Text>
 
-                {selectedTeachers.length > 1 && (
-                  <Pressable onPress={() => removeTeacherRow(index)}>
-                    <Ionicons
-                      name="trash-outline"
-                      size={20}
-                      color={BRONZE_COLORS.danger}
-                    />
-                  </Pressable>
-                )}
-              </View>
-
-              <Dropdown
-                style={styles.dropdown}
-                placeholderStyle={styles.dropdownPlaceholder}
-                selectedTextStyle={styles.dropdownSelected}
-                itemTextStyle={styles.dropdownItem}
-                data={teachers.map(t => ({
-                  label: `${t.first_name} ${t.last_name} (${t.username})`,
-                  value: t.id,
-                }))}
-                labelField="label"
-                valueField="value"
-                placeholder="Select a teacher..."
-                value={teacherId}
-                onChange={item => updateTeacher(index, item.value)}
-              />
+              {selectedTeachers.length > 1 && (
+                <Pressable onPress={() => removeTeacherRow(index)}>
+                  <Ionicons name="trash-outline" size={20} color={BRONZE_COLORS.danger} />
+                </Pressable>
+              )}
             </View>
-          ))}
-          <Pressable
-              style={styles.addStudentButton}
-              onPress={addTeacherRow}
-          >
-              <Ionicons
-                  name="add-circle-outline"
-                  size={20}
-                  color={BRONZE_COLORS.bronzeBright}
-              />
-              <Text style={styles.addStudentButtonText}>
-                  Add Teacher
-              </Text>
-          </Pressable>
+
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownPlaceholder}
+              selectedTextStyle={styles.dropdownSelected}
+              itemTextStyle={styles.dropdownItem}
+              data={teachers.map((t) => ({
+                label: `${t.first_name} ${t.last_name} (${t.username})`,
+                value: t.id,
+              }))}
+              labelField="label"
+              valueField="value"
+              placeholder="Select a teacher..."
+              value={teacherId}
+              onChange={(item) => updateTeacher(index, item.value)}
+            />
+          </View>
+        ))}
+        <Pressable style={styles.addStudentButton} onPress={addTeacherRow}>
+          <Ionicons name="add-circle-outline" size={20} color={BRONZE_COLORS.bronzeBright} />
+          <Text style={styles.addStudentButtonText}>Add Teacher</Text>
+        </Pressable>
         {/* Students */}
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionTitleIndicator} />
@@ -340,6 +361,9 @@ function updateGender(gender) {
 
         {students.map((student, index) => {
           const rowError = errors.students?.[index] || {};
+          const studentParentIds = student.parent_ids || [];
+          const availableParents = parents.filter((p) => !studentParentIds.includes(p.id));
+
           return (
             <View key={index} style={styles.studentCard}>
               <View style={styles.studentCardHeader}>
@@ -381,6 +405,55 @@ function updateGender(gender) {
                 autoCapitalize="none"
                 error={rowError.email}
               />
+
+              {/* Parents */}
+              <View style={styles.parentsSection}>
+                <Text style={styles.fieldLabel}>Parents</Text>
+
+                {studentParentIds.length > 0 && (
+                  <View style={styles.parentChipsWrap}>
+                    {studentParentIds.map((pid) => {
+                      const parent = parents.find((p) => p.id === pid);
+                      return (
+                        <View key={pid} style={styles.parentChip}>
+                          <Ionicons
+                            name="person-circle-outline"
+                            size={15}
+                            color={BRONZE_COLORS.bronzeAccent}
+                          />
+                          <Text style={styles.parentChipText}>{parentLabel(parent)}</Text>
+                          <Pressable
+                            onPress={() => removeParentFromStudent(index, pid)}
+                            hitSlop={8}
+                          >
+                            <Ionicons
+                              name="close-circle"
+                              size={16}
+                              color={BRONZE_COLORS.textMuted}
+                            />
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                <Dropdown
+                  style={styles.dropdownSmall}
+                  placeholderStyle={styles.dropdownPlaceholder}
+                  selectedTextStyle={styles.dropdownSelected}
+                  itemTextStyle={styles.dropdownItem}
+                  data={availableParents.map((p) => ({
+                    label: `${parentLabel(p)}${p.username ? ` (${p.username})` : ''}`,
+                    value: p.id,
+                  }))}
+                  labelField="label"
+                  valueField="value"
+                  placeholder="+ Add a parent"
+                  value={null}
+                  onChange={(item) => addParentToStudent(index, item.value)}
+                />
+              </View>
             </View>
           );
         })}
@@ -425,28 +498,37 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BRONZE_COLORS.bgCanvas },
 
   dropdown: {
-  height: 54,
-  borderWidth: 1,
-  borderColor: BRONZE_COLORS.borderLight,
-  borderRadius: 10,
-  backgroundColor: '#FFF',
-  paddingHorizontal: 14,
-},
+    height: 54,
+    borderWidth: 1,
+    borderColor: BRONZE_COLORS.borderLight,
+    borderRadius: 10,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 14,
+  },
 
-dropdownPlaceholder: {
-  color: '#9CA3AF',
-  fontSize: 15,
-},
+  dropdownSmall: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: BRONZE_COLORS.borderLight,
+    borderRadius: 10,
+    backgroundColor: BRONZE_COLORS.bgCanvas,
+    paddingHorizontal: 12,
+  },
 
-dropdownSelected: {
-  color: BRONZE_COLORS.textDark,
-  fontSize: 15,
-  fontWeight: '600',
-},
+  dropdownPlaceholder: {
+    color: '#9CA3AF',
+    fontSize: 15,
+  },
 
-dropdownItem: {
-  fontSize: 15,
-},
+  dropdownSelected: {
+    color: BRONZE_COLORS.textDark,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  dropdownItem: {
+    fontSize: 15,
+  },
 
   header: {
     height: 64,
@@ -482,6 +564,15 @@ dropdownItem: {
     marginBottom: 28,
   },
 
+  teacherCard: {
+    backgroundColor: BRONZE_COLORS.surfaceWhite,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BRONZE_COLORS.borderLight,
+    padding: 20,
+    marginBottom: 16,
+  },
+
   studentCard: {
     backgroundColor: BRONZE_COLORS.surfaceWhite,
     borderRadius: 14,
@@ -515,6 +606,34 @@ dropdownItem: {
   },
   fieldInputError: { borderColor: BRONZE_COLORS.danger },
   fieldErrorText: { color: BRONZE_COLORS.danger, fontSize: 12, marginTop: 4 },
+
+  /* Parents (nested inside each student card) */
+  parentsSection: {
+    marginTop: 4,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: BRONZE_COLORS.borderLight,
+  },
+  parentChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  parentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: BRONZE_COLORS.badgeBg,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  parentChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: BRONZE_COLORS.badgeText,
+  },
 
   addStudentButton: {
     flexDirection: 'row',

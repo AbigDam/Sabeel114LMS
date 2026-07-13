@@ -2,7 +2,9 @@
   "name": "frontend",
   "version": "1.0.0",
   "main": "index.js",
+  "homepage": "https://AbigDam.github.io/Sabeel114LMS",
   "dependencies": {
+    "@expo/metro-runtime": "~56.0.16",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "^3.1.1",
     "@react-native-picker/picker": "^2.11.4",
@@ -20,10 +22,14 @@
     "react-native-web": "^0.21.2"
   },
   "scripts": {
+    "build-web": "expo export --platform web && touch dist/.nojekyll",
+    "deploy": "npm run build-web && gh-pages -d dist",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
-  "private": true
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
+  }
 }

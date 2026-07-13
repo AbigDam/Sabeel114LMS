@@ -11,11 +11,17 @@ import { apiCall } from '../api.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 
+const ROLES = [
+  { value: 'Teacher', label: 'Teacher', icon: 'school-outline' },
+  { value: 'Parent', label: 'Parent', icon: 'people-outline' },
+];
+
 export default function SignupScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [role, setRole] = useState(null);
   const [errors, setErrors] = useState({});
 
   const { setAuthenticated } = useAuth();
@@ -45,6 +51,10 @@ export default function SignupScreen({ navigation }) {
       next.confirm = 'Passwords do not match.';
     }
 
+    if (!role) {
+      next.role = 'Please choose an account type.';
+    }
+
     return next;
   }
 async function handleSignup() {
@@ -63,7 +73,7 @@ async function handleSignup() {
         username: trimmedUsername,
         email: trimmedEmail,
         password,
-        role: 'Teacher',
+        role,
       },
     });
 
@@ -88,7 +98,31 @@ async function handleSignup() {
   return (
     <AuthScene>
       <Text style={styles.welcome}>Create your account</Text>
-      <Text style={styles.welcomeSub}>Join the Al-Hidaya teaching team</Text>
+      <Text style={styles.welcomeSub}>Join the Al-Hidaya community</Text>
+
+      <Text style={styles.roleLabel}>I am a</Text>
+      <View style={styles.roleRow}>
+        {ROLES.map((r) => {
+          const selected = role === r.value;
+          return (
+            <Pressable
+              key={r.value}
+              onPress={() => setRole(r.value)}
+              style={[styles.roleOption, selected && styles.roleOptionSelected]}
+            >
+              <Ionicons
+                name={r.icon}
+                size={18}
+                color={selected ? colors.textOnPrimary : colors.textMuted}
+              />
+              <Text style={[styles.roleOptionText, selected && styles.roleOptionTextSelected]}>
+                {r.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {errors.role ? <Text style={styles.roleErrorText}>{errors.role}</Text> : null}
 
       <TextField
         label="Username"
@@ -174,6 +208,46 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
     marginBottom: spacing.xl,
+  },
+  roleLabel: {
+    fontSize: fonts.sizes.body,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  roleOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    height: 48,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border ?? '#E5E7EB',
+    backgroundColor: colors.surface ?? '#FFFFFF',
+  },
+  roleOptionSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  roleOptionText: {
+    fontSize: fonts.sizes.body,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  roleOptionTextSelected: {
+    color: colors.textOnPrimary,
+  },
+  roleErrorText: {
+    color: colors.danger ?? '#DD0505',
+    fontSize: 12,
+    marginBottom: spacing.md,
   },
   primaryBtn: {
     flexDirection: 'row',

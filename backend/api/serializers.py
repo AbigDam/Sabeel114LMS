@@ -42,6 +42,17 @@ class TeacherSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
         ]
+        
+class ParentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+        ]
+
 
 class CreateClassSerializer(serializers.Serializer):
     class_name = serializers.CharField()
@@ -142,6 +153,13 @@ class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "first_name", "last_name"]
+
+class LeaderboardSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    class Meta:
+        model = User
+        fields = ["id", "first_name", "last_name", "username", "score", "gender"]
+
 
 class LogSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="log_id", read_only=True)

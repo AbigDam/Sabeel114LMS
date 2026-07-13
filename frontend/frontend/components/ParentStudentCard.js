@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiCall } from '../api.js';
-import BarChart from '../screens/BarChart.js';
+import BarChart from './BarChart';
 import { computeScore, isPresent, scoreToCategory } from '../utils/score';
 
 const BRONZE = {

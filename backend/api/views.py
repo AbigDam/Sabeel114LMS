@@ -22,6 +22,15 @@ LOG_TYPE_MAP = {
 def test(request):
     return Response({"message": "Testing!  Testing!  Message Recived?"})
 
+class UpdateNotificationsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        user = request.user
+        user.email_notifications = not user.email_notifications
+        user.save()
+        return Response({"message": "Notifications updated successfully."})
+
 class GetPerformanceView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, student_id):
@@ -68,6 +77,15 @@ class GetChildren(APIView):
         serializer = StudentSerializer(children, many=True)
         return Response(serializer.data)
 
+
+
+class LeaderboardListView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        students = User.objects.filter(role=2).order_by('score')
+        serializer = LeaderboardSerializer(students, many=True)
+        return Response(serializer.data)
+
 class MaleListView(APIView):
     def get(self, request):
         male_students = User.objects.filter(role=2, gender=True).order_by('score')
@@ -79,6 +97,19 @@ class FemaleListView(APIView):
         female_students = User.objects.filter(role=2, gender=False).order_by('score')
         serializer = StudentSerializer(female_students, many=True)
         return Response([female_student.first_name+female_student.last_name for female_student in female_students])
+
+class ParentListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        parents = (
+            User.objects
+            .filter(role=0)
+            .order_by("last_name", "first_name")
+        )
+
+        serializer = ParentSerializer(parents, many=True)
+        return Response(serializer.data)
 
 class TeacherListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -137,8 +168,9 @@ class CurrentUser(APIView):
             "last_name": request.user.last_name,
             "email": request.user.email,
             "username": request.user.username,
-            "is_superuser": request.user.is_superuser,
+            "is_superuser": request.user.is_staff or request.user.is_superuser,
             "role": request.user.role,
+            "email_notifications": request.user.email_notifications,
         })
 
 class AnnouncementListView(ListAPIView):
@@ -275,6 +307,7 @@ class CreateClassAccounts(APIView):
         room = self.request.data.get("room") 
         gender = self.request.data.get("gender")
         teachers =  self.request.data.get("teacher_ids") 
+        parents =  self.request.data.get("parent_ids") 
         
         classroom = Classroom.objects.create(class_name = class_name, teachers = teachers, program = program, schedule = schedule, room = room, status = True) 
         results = {"created": []}
@@ -289,7 +322,7 @@ class CreateClassAccounts(APIView):
             if User.objects.filter(username = first_name + last_name).exists():
                 user = User.objects.get(username = first_name + last_name)
             else:
-                user = User.objects.create_user(username = first_name + last_name, first_name = first_name, last_name = last_name, email = email, gender = gender, password = password, role = role_obj)
+                user = User.objects.create_user(username = first_name + last_name, first_name = first_name, parents = parents, last_name = last_name, email = email, gender = gender, password = password, role = role_obj)
             students.append(user.id)
             results["created"].append( {"username":username, "student_id":user.id}) 
         classroom.students = students

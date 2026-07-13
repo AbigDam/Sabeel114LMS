@@ -17,6 +17,8 @@ import AddLogScreen from './screens/AddLogScreen';
 import StudentViewScreen from './screens/StudentViewScreen';
 import CreateClassAccountsScreen from './screens/CreateClassAccountsScreen.js';
 import LeaderboardScreen from './screens/LeaderboardScreen.js';
+import PrivateLeaderboardScreen from './screens/PrivateLeaderboardScreen.js';
+
 import { AuthContext } from './context/AuthContext';
 import { colors, spacing, fonts, radii } from './constants/theme';
 
@@ -25,6 +27,12 @@ import { colors, spacing, fonts, radii } from './constants/theme';
 //import ManageCourses from './admin-portal/ManageCourses';
 
 const Stack = createNativeStackNavigator();
+
+// current_user/ returns role as: 0 = parent, 1 = teacher, 2 = student
+const ROLE_PARENT = 0;
+const ROLE_TEACHER = 1;
+const ROLE_STUDENT = 2;
+const VALID_ROLES = [ROLE_PARENT, ROLE_TEACHER, ROLE_STUDENT];
 
 /* ---------------- SMALL INLINE ERROR VIEW ---------------- */
 function AppLoadError({ message, onRetry }) {
@@ -153,28 +161,32 @@ export default function App() {
                   <Stack.Screen name="AppError">
                     {() => <AppLoadError message={userError} onRetry={checkAuth} />}
                   </Stack.Screen>
-                ) : user.role_id === 1 ? (
-                  // Teacher
+                ) : !VALID_ROLES.includes(user.role) ? (
+                  <Stack.Screen name="AppError">
+                    {() => (
+                      <AppLoadError
+                        message={`No screen configured for role "${user.role}".`}
+                        onRetry={checkAuth}
+                      />
+                    )}
+                  </Stack.Screen>
+                ) : user.role === ROLE_TEACHER ? (
+                  // Teacher (and superuser, since all superusers are teachers).
+                  // Admin-only screens (PrivateLeaderboard, CreateClassAccounts)
+                  // are registered here too — DashboardScreen only shows the
+                  // links to them when user.is_superuser is true, so a
+                  // non-admin teacher never sees a way to navigate here.
                   <>
                     <Stack.Screen name="Dashboard" component={DashboardScreen} />
                     <Stack.Screen name="AddLog" component={AddLogScreen} />
                     <Stack.Screen name="StudentRoster" component={StudentViewScreen} />
                     <Stack.Screen name="CreateClassAccounts" component={CreateClassAccountsScreen} />
-                    <Stack.Screen name="AdminLeaderboard" component={AdminLeaderboardScreen} />
-                  </>
-                ) : user.role_id !==  1 ? (
-                  <>
-                    <Stack.Screen name="Dashboard" component={DashboardScreen} />
+                    <Stack.Screen name="PrivateLeaderboard" component={PrivateLeaderboardScreen} />
                   </>
                 ) : (
-                  <Stack.Screen name="AppError">
-                    {() => (
-                      <AppLoadError
-                        message={`No screen configured for role "${user.role_id}".`}
-                        onRetry={checkAuth}
-                      />
-                    )}
-                  </Stack.Screen>
+                  // Parent or Student — just the dashboard, which renders
+                  // the appropriate view internally based on user.role.
+                  <Stack.Screen name="Dashboard" component={DashboardScreen} />
                 )
               ) : (
                 // Not authenticated

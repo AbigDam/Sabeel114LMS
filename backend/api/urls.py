@@ -21,8 +21,13 @@ urlpatterns = [
     path("update_log/", UpdateLogView.as_view(), name='update_log'),
     path("delete_log/", DeleteLogView.as_view(), name='delete_log'),
     path("teachers/", TeacherListView.as_view(), name='teachers'),
+    path("parents/", ParentListView.as_view(), name='parents'),
+    path("notifications/", UpdateNotificationsView.as_view(), name='notifications'),
+
     path("male_list/", MaleListView.as_view(), name='male_list'),
     path("female_list/", FemaleListView.as_view(), name='female_list'),
+    path("leaderboard/", LeaderboardListView.as_view(), name='leaderboard'),
+
     path("parent/students/", GetChildren.as_view(), name='children'),
     path("parent/students/<int:student_id>/week/", GetWeeklyLogsView.as_view(), name='weekly_logs'),
     path("parent/students/<int:student_id>/performance/", GetPerformanceView.as_view(), name='performance'),
