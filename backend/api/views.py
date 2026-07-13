@@ -288,9 +288,11 @@ class CreateLogView(generics.CreateAPIView):
         student = log.student
         print(f"Student: {student.first_name} {student.last_name}, Parents: {student.parents}")
         if student.parents:
+            print("Parents found")
             for parent_id in student.parents:
                 parent = User.objects.get(id=parent_id)
-                if parent and parent.email_notifications:
+                print(f"Parent: {parent.first_name} {parent.last_name}, Email: {parent.email}, Notifications Enabled: {parent.email_notifications}")
+                if parent.email_notifications:
                     print(f"Sending email to: {parent.email}")
                     send_email(parent.email, log_message)
                 else:
