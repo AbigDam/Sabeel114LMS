@@ -14,24 +14,21 @@ export const brand = {
   portal: 'School Portal',
 
   // Contact
-  address: '322 Troy Schenectady Rd, Latham, NY 12110',
-  phone: '518-608-1255',
+  address: '4065 E Plano Pkwy Ste 200, Plano, TX 75074',
+  phone: '(469) 891-2797',
   email: 'office@al-hidaya.org',
   website: 'https://www.al-hidaya.org',
 
   // Social
   social: {
-    facebook: 'https://www.facebook.com/AlHidayaCenterLatham',
-    instagram: 'https://www.instagram.com/al_hidaya_center/',
-    youtube: 'https://www.youtube.com/channel/UCdwICxZYB8zQ6xrJZ0OS1CQ',
-    whatsapp: 'https://whatsapp.com/channel/0029Vb7ow6ZAYlUI28z4XN2X',
+    instagram: 'https://www.instagram.com/sabeel_114/?hl=en',
   },
 };
 
 // Local image assets (require() so Metro bundles them for every platform).
 export const brandImages = {
   logo: require('../assets/branding/logo.png'),
-  masjid: require('../assets/branding/masjid.png'),
+  masjid: require('../assets/branding/masjid.webp'),
 };
 
 export default brand;

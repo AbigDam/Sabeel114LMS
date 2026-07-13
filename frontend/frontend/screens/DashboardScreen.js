@@ -141,7 +141,7 @@ function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
       <View style={styles.hubWelcomeBanner}>
         <Text style={styles.hubGreeting}>Teacher {teacher?.username}</Text>
         <Text style={styles.hubSubGreeting}>
-          Al-Hidaya Teacher Portal Dashboard — Manage your active classes and student logs.
+          Sabeel 114 Teacher Portal Dashboard — Manage your active classes and student logs.
         </Text>
       </View>
 
@@ -275,13 +275,15 @@ function ParentDashboardBody({
   onToggleEmailNotifications,
   notificationsSaving,
   notificationsError,
+  navigation,
 }) {
   return (
     <>
+
       <View style={styles.hubWelcomeBanner}>
         <Text style={styles.hubGreeting}>Welcome, {teacher?.username}</Text>
         <Text style={styles.hubSubGreeting}>
-          Tap on a student to see their calendar for the current week, including daily scores
+          Sabeel 114 Parent Portal Dashboard — Tap on a student to see their calendar for the current week, including daily scores
           and teacher comments.
         </Text>
       </View>
@@ -558,6 +560,7 @@ export default function DashboardScreen({ navigation }) {
               onToggleEmailNotifications={handleToggleEmailNotifications}
               notificationsSaving={notificationsSaving}
               notificationsError={notificationsError}
+              navigation={navigation}
             />
           ) : null}
         </ScrollView>
