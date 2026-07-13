@@ -268,8 +268,8 @@ class StudentListView(APIView):
         
 class CreateLogView(generics.CreateAPIView):
     serializer_class = CreateLogSerializer
-    send_email("adamkhurshid08@gmail.com", "Testing! A new log has been created! ")
     def create(self, request, *args, **kwargs):
+        send_email("adamkhurshid08@gmail.com", "Testing! A new log has been created! ")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         log = serializer.save()
