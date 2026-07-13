@@ -12,8 +12,18 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
 from django.utils import timezone
-
+from django.core.mail import send_mail
+from django.conf import settings
 User = get_user_model()
+
+def send_email(email, message):
+    send_mail(
+        subject="Sabeel LMS Notification",
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        fail_silently=False,
+    )
 
 LOG_TYPE_MAP = {
     0: 'reading',
@@ -234,7 +244,7 @@ class StudentListView(APIView):
         
 class CreateLogView(generics.CreateAPIView):
     serializer_class = CreateLogSerializer
-
+    send_email("adamkhurshid08@gmail.com", "Testing! A new log has been created! ")
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
