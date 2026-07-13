@@ -273,21 +273,27 @@ class CreateLogView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         log = serializer.save()
 
-        send_email("adamkhurshid08@gmail.com", "message1")
+        #send_email("adamkhurshid08@gmail.com", "message1")
 
-        '''
+        
         respect = "Did not meet expectations" if log.respect == 1 else "Meets expectations"
         behavior = "Needs Attention" if log.behavior == 1 else "Good" if log.behavior == 2 else "Excellent"
+        print("Respect:", respect)
+        print("Behavior:", behavior)
         if log.attendance == 0:
             log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nRespect: {respect}\nBehavior: {behavior}\nAttendance: 'Present' \nComments: {log.comments}"
         else:
             log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nAttendance: 'Absent'"
-        
+        print("Log Message:", log_message)
         for parent_id in log.student.parents or []:
             parent = User.objects.filter(id=parent_id).first()
             if parent and parent.email_notifications:
-                send_email(parent.email, "log_message")
-        '''
+                print(f"Sending email to: {parent.email}")
+                send_email(parent.email, log_message)
+            else:
+                print(f"Skipping email for parent ID {parent_id}: No email or notifications disabled.")
+            
+        
 
         return Response({"id": log.log_id}, status=status.HTTP_201_CREATED)
 
