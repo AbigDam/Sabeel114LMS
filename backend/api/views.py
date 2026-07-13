@@ -16,15 +16,39 @@ from django.core.mail import send_mail
 from django.conf import settings
 User = get_user_model()
 
+import os
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
+
+
 def send_email(email, message):
-    send_mail(
-        subject="Sabeel LMS Notification",
-        message=message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        fail_silently=False,
+
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key["api-key"] = os.environ.get("BREVO_API_KEY")
+
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+        sib_api_v3_sdk.ApiClient(configuration)
     )
 
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=[
+            {
+                "email": email
+            }
+        ],
+        sender={
+            "email": "your_verified_email@example.com",
+            "name": "Sabeel LMS"
+        },
+        subject="Sabeel LMS Notification",
+        text_content=message
+    )
+
+    try:
+        api_instance.send_transac_email(send_smtp_email)
+    except ApiException as e:
+        print("Email error:", e)
+        
 LOG_TYPE_MAP = {
     0: 'reading',
     1: 'memorization',
