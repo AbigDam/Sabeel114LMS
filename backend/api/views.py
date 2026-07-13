@@ -287,15 +287,16 @@ class CreateLogView(generics.CreateAPIView):
         print("Log Message:", log_message)
         student = log.student
         print(f"Student: {student.first_name} {student.last_name}, Parents: {student.parents}")
-        for parent_id in student.parents or []:
-            parent = User.objects.filter(id=parent_id).first()
-            if parent and parent.email_notifications:
-                print(f"Sending email to: {parent.email}")
-                send_email(parent.email, log_message)
-            else:
-                print(f"Skipping email for parent ID {parent_id}: No email or notifications disabled.")
+        if student.parents:
+            for parent_id in student.parents:
+                parent = User.objects.get(id=parent_id)
+                if parent and parent.email_notifications:
+                    print(f"Sending email to: {parent.email}")
+                    send_email(parent.email, log_message)
+                else:
+                    print(f"Skipping email for parent ID {parent_id}: No email or notifications disabled.")
+                
             
-        
 
         return Response({"id": log.log_id}, status=status.HTTP_201_CREATED)
 
