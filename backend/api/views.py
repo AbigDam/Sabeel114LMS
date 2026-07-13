@@ -285,7 +285,9 @@ class CreateLogView(generics.CreateAPIView):
         else:
             log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nAttendance: 'Absent'"
         print("Log Message:", log_message)
-        for parent_id in log.student.parents or []:
+        student = log.student
+        print(f"Student: {student.first_name} {student.last_name}, Parents: {student.parents}")
+        for parent_id in student.parents or []:
             parent = User.objects.filter(id=parent_id).first()
             if parent and parent.email_notifications:
                 print(f"Sending email to: {parent.email}")
