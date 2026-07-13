@@ -37,7 +37,7 @@ def send_email(email, message):
             }
         ],
         sender={
-            "email": "your_verified_email@example.com",
+            "email": "sabeel114@yahoo.com",
             "name": "Sabeel LMS"
         },
         subject="Sabeel LMS Notification",
@@ -48,7 +48,7 @@ def send_email(email, message):
         api_instance.send_transac_email(send_smtp_email)
     except ApiException as e:
         print("Email error:", e)
-        
+
 LOG_TYPE_MAP = {
     0: 'reading',
     1: 'memorization',
