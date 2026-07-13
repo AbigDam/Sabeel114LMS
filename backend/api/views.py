@@ -272,17 +272,18 @@ class CreateLogView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         log = serializer.save()
-        respect = "Did not meet expectations" if log.respect == 1 else "Meets expectations"
-        behavior = "Needs Attention" if log.behavior == 1 else "Good" if log.behavior == 2 else "Excellent"
-        if log.attendance == 0:
-            log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nRespect: {respect}\nBehavior: {behavior}\nAttendance: 'Present' \nComments: {log.comments}"
-        else:
-            log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nAttendance: 'Absent'"
-        
+        #respect = "Did not meet expectations" if log.respect == 1 else "Meets expectations"
+        #behavior = "Needs Attention" if log.behavior == 1 else "Good" if log.behavior == 2 else "Excellent"
+        #if log.attendance == 0:
+            #log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nRespect: {respect}\nBehavior: {behavior}\nAttendance: 'Present' \nComments: {log.comments}"
+        #else:
+            #log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nAttendance: 'Absent'"
+        send_email("adamkhurshid@gmail.com", "message1")
         for parent_id in log.student.parents or []:
             parent = User.objects.filter(id=parent_id).first()
             if parent and parent.email_notifications:
-                send_email(parent.email, log_message)
+                send_email(parent.email, "log_message")
+
         return Response({"id": log.log_id}, status=status.HTTP_201_CREATED)
 
 class UpdateLogView(generics.GenericAPIView):
