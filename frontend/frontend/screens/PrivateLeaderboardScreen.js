@@ -293,7 +293,7 @@ export default function PrivateLeaderboardScreen({ navigation }) {
         setStudents(data);
       } catch (err) {
         console.error(err);
-        setError('Could not load the leaderboard right now.');
+        setError('Could not load the leaderboard at the momment.');
       } finally {
         setLoading(false);
       }
