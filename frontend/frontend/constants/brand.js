@@ -1,16 +1,16 @@
 // constants/brand.js
 // -----------------------------------------------------------------------------
-// Real organization details for Al-Hidaya Center (Latham, NY), used across the
-// app so it feels like their own product. Source: https://www.al-hidaya.org
+// Organization details for Sabeel 114, used across the app so it feels like
+// their own product.
 //
 // Centralised here so contact info / links live in ONE place. Image assets are
-// downloaded into assets/branding so they render reliably on iOS/Android/Web.
+// stored in assets/branding so they render reliably on iOS/Android/Web.
 // -----------------------------------------------------------------------------
 
 export const brand = {
   name: 'Sabeel 114',
   shortName: 'Sabeel 114',
-  tagline: 'Islamic Community',
+  tagline: 'Islamic Learning',
   portal: 'School Portal',
 
   // Contact

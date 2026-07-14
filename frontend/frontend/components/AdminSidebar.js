@@ -1,10 +1,10 @@
 // components/Sidebar.js
 // -----------------------------------------------------------------------------
-// LEFT navigation sidebar (the brown/espresso panel) for the Teacher Dashboard.
+// LEFT navigation sidebar (the olive/forest panel) for the Teacher Dashboard.
 //
 // Sized to comfortably fit each class's icon AND name on one row — no wasted
 // empty space. Layout, top to bottom:
-//   - Al-Hidaya logo + name
+//   - Sabeel 114 logo + name
 //   - one row per class (icon chip + full class name)
 //   - red "Sign Out" pinned at the bottom
 //

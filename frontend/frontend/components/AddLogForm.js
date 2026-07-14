@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { colors, spacing, radii } from '../constants/theme';
 
-// Replaces the useTheme hook — mirrors the app's warm cream/bronze palette
+// Replaces the useTheme hook — mirrors the app's warm cream/olive palette
 // from constants/theme.js.
 const theme = {
   background:        colors.background, // '#F7F4EF' warm off-white

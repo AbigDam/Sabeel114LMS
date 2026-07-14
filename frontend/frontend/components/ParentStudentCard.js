@@ -6,14 +6,14 @@ import BarChart from './BarChart';
 import { computeScore, isPresent, scoreToCategory } from '../utils/score';
 
 const BRONZE = {
-  bronzeDeep: '#3E3122',
-  bronzeBright: '#B45309',
-  bronzeAccent: '#9A6A3C',
+  bronzeDeep: '#2A3820',
+  bronzeBright: '#4D5E35',
+  bronzeAccent: '#6B7A58',
   surfaceWhite: '#FFFFFF',
   textDark: '#111827',
   textMuted: '#4B5563',
   borderLight: '#E5E7EB',
-  badgeBg: '#FEF3C7',
+  badgeBg: '#E6EDDA',
 };
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

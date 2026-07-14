@@ -31,16 +31,16 @@ const ROLE_TEACHER = 1;
 const ROLE_STUDENT = 2;
 
 const BRONZE_COLORS = {
-  bronzeDeep: '#3E3122',
-  bronzeBright: '#B45309',
-  bronzeAccent: '#9A6A3C',
-  bgCanvas: '#FAF9F6',
+  bronzeDeep: '#2A3820',
+  bronzeBright: '#4D5E35',
+  bronzeAccent: '#6B7A58',
+  bgCanvas: '#F5F4EE',
   surfaceWhite: '#FFFFFF',
   textDark: '#111827',
   textMuted: '#4B5563',
   borderLight: '#E5E7EB',
-  badgeBg: '#FEF3C7',
-  badgeText: '#92400E',
+  badgeBg: '#E6EDDA',
+  badgeText: '#3C4B28',
 };
 
 const ADMIN_COLORS = {
@@ -122,13 +122,18 @@ function AdminBar({ navigation }) {
           <Ionicons name="add-circle-outline" size={18} color={ADMIN_COLORS.text} />
           <Text style={styles.adminBarLinkText}>Create Class</Text>
         </Pressable>
+
+        <Pressable onPress={() => navigation.navigate('Leaderboard')} hitSlop={8}>
+          <Text style={styles.link}>View Leaderboard</Text>
+        </Pressable>
+
       </View>
     </View>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Teacher dashboard body                                              */
+/* Teacher dashboard body                                            */
 /* ------------------------------------------------------------------ */
 function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
   const totalStudents = courses.reduce((sum, c) => sum + c.students, 0);
@@ -202,7 +207,7 @@ function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Student dashboard body                                              */
+/* Student dashboard body                                            */
 /* ------------------------------------------------------------------ */
 function StudentDashboardBody({ teacher, navigation }) {
   return (
@@ -495,7 +500,7 @@ export default function DashboardScreen({ navigation }) {
                 style={styles.menuIconButton}
                 hitSlop={12}
               >
-                <Ionicons name={sidebarVisible ? 'close' : 'menu'} size={28} color="#9A6A3C" />
+                <Ionicons name={sidebarVisible ? 'close' : 'menu'} size={28} color="#FFFFFF" />
               </Pressable>
             ) : (
               <Pressable
@@ -503,7 +508,7 @@ export default function DashboardScreen({ navigation }) {
                 style={styles.menuIconButton}
                 hitSlop={12}
               >
-                <Ionicons name="menu" size={32} color="#9A6A3C" />
+                <Ionicons name="menu" size={32} color="#FFFFFF" />
               </Pressable>
             ))}
           {isWide ? (
@@ -595,23 +600,23 @@ const styles = StyleSheet.create({
 
   hubHeader: {
     height: 76,
-    backgroundColor: BRONZE_COLORS.surfaceWhite,
+    backgroundColor: BRONZE_COLORS.bronzeBright,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
     borderBottomWidth: 4,
-    borderBottomColor: BRONZE_COLORS.bronzeAccent,
+    borderBottomColor: BRONZE_COLORS.bronzeDeep,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   menuIconButton: { padding: 4, marginRight: 4, justifyContent: 'center', alignItems: 'center' },
   hubLogo: { width: 92, height: 92, borderRadius: 12 },
-  hubTitle: { fontSize: 24, fontWeight: '700', color: BRONZE_COLORS.textDark, letterSpacing: 0.3 },
+  hubTitle: { fontSize: 22, fontWeight: '300', color: '#FFFFFF', letterSpacing: 5, textTransform: 'lowercase' },
 
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 20 },
-  teacherBadgeContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(243, 133, 6, 0.18)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, gap: 10 },
+  teacherBadgeContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.18)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, gap: 10 },
   onlineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#01885b' },
-  teacherBadgeText: { color: '#0f0f0f', fontSize: 16, fontWeight: '600' },
+  teacherBadgeText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   logoutButton: { padding: 8, backgroundColor: 'rgb(221, 5, 5)', borderRadius: 8 },
 
   scrollCanvas: { padding: 32, maxWidth: 1600, width: '100%', alignSelf: 'center' },
@@ -686,7 +691,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BRONZE_COLORS.borderLight,
   },
-  statIconBadge: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  statIconBadge: { width: 64, height: 64, borderRadius: 32, backgroundColor: BRONZE_COLORS.surfaceWhite, alignItems: 'center', justifyContent: 'center' },
   statTextGroup: { flex: 1 },
   largeStatValue: { fontSize: 34, fontWeight: '800', color: BRONZE_COLORS.textDark, letterSpacing: -0.5 },
   largeStatLabel: { fontSize: 16, fontWeight: '600', color: BRONZE_COLORS.textMuted, marginTop: 4 },

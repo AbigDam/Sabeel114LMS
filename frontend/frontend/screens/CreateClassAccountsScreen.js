@@ -14,16 +14,16 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '../api.js';
 import { Dropdown } from 'react-native-element-dropdown';
 const BRONZE_COLORS = {
-  bronzeDeep: '#3E3122',
-  bronzeBright: '#B45309',
-  bronzeAccent: '#9A6A3C',
-  bgCanvas: '#FAF9F6',
+  bronzeDeep: '#2A3820',
+  bronzeBright: '#4D5E35',
+  bronzeAccent: '#6B7A58',
+  bgCanvas: '#F5F4EE',
   surfaceWhite: '#FFFFFF',
   textDark: '#111827',
   textMuted: '#4B5563',
   borderLight: '#E5E7EB',
-  badgeBg: '#FEF3C7',
-  badgeText: '#92400E',
+  badgeBg: '#E6EDDA',
+  badgeText: '#3C4B28',
   danger: '#DD0505',
   success: '#01885B',
 };

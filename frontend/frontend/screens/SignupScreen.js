@@ -98,7 +98,7 @@ async function handleSignup() {
   return (
     <AuthScene>
       <Text style={styles.welcome}>Create your account</Text>
-      <Text style={styles.welcomeSub}>Join the Al-Hidaya community</Text>
+      <Text style={styles.welcomeSub}>Join the Sabeel 114 community</Text>
 
       <Text style={styles.roleLabel}>I am a</Text>
       <View style={styles.roleRow}>
@@ -140,7 +140,7 @@ async function handleSignup() {
         iconName="mail-outline"
         value={email}
         onChangeText={setEmail}
-        placeholder="you@al-hidaya.org"
+        placeholder="you@example.com"
         error={errors.email}
         keyboardType="email-address"
         autoCapitalize="none"
@@ -190,13 +190,6 @@ async function handleSignup() {
           <Text style={styles.link}>Log in</Text>
         </Pressable>
       </View>
-
-
-      <Pressable onPress={() => navigation.navigate('Leaderboard')} hitSlop={8}>
-        <Text style={styles.link}>View Leaderboard</Text>
-      </Pressable>
-
-
     </AuthScene>
   );
 }

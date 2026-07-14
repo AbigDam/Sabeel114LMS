@@ -11,23 +11,23 @@
 
 // components/CourseCard.js
 // -----------------------------------------------------------------------------
-// Al-Hidaya Course Card Component — Bronze & White Style (Wide Layout & Large Typography)
+// Sabeel 114 Course Card Component — Olive Green & White Style (Wide Layout & Large Typography)
 // -----------------------------------------------------------------------------
 
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-// High-visibility theme palette mirroring the Bronze and White layout
+// High-visibility theme palette mirroring the Olive Green and White layout
 const BRONZE_COLORS = {
-  bronzeDeep: '#3E3122',    // Deep majestic bronze
-  bronzeBright: '#B45309',  // Vibrant focus bronze
-  bronzeAccent: '#9A6A3C',  // Warm gold/bronze trim accent
-  surfaceWhite: '#FFFFFF',  // Clean surface card
-  textDark: '#111827',      // Ultra-readable deep charcoal
-  textMuted: '#4B5563',     // Secondary body text
-  borderLight: '#E5E7EB',   // Subtle dividers
-  successBg: '#FEF3C7',     // Soft bronze tint badge background
-  successText: '#92400E',    // Dark bronze text badge
+  bronzeDeep: '#2A3820',    // deep forest olive
+  bronzeBright: '#4D5E35',  // main olive brand color
+  bronzeAccent: '#6B7A58',  // warm sage trim accent
+  surfaceWhite: '#FFFFFF',
+  textDark: '#111827',
+  textMuted: '#4B5563',
+  borderLight: '#E5E7EB',
+  successBg: '#E6EDDA',     // soft olive tint badge background
+  successText: '#3C4B28',   // dark olive badge text
 };
 
 export default function CourseCard({ course, onViewDetails, style }) {

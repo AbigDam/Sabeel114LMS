@@ -1,46 +1,46 @@
 // constants/theme.js
 // -----------------------------------------------------------------------------
-// Central design tokens for the Al-Hidaya Center Teacher Portal.
+// Central design tokens for the Sabeel 114 School Portal.
 //
-// The palette is taken from the Al-Hidaya Center logo: a warm bronze/brown dome
-// & minaret on cream/white. We pair that bronze with deep espresso surfaces and
-// a cream background so the app feels like an extension of their brand (NOT the
-// generic blue/grey "AI default" look).
+// The palette is taken from the Sabeel 114 logo: deep olive/forest green
+// background with warm cream calligraphy. We pair that olive green with dark
+// forest surfaces and a warm off-white background so the app feels like an
+// extension of their brand (NOT the generic blue/grey "AI default" look).
 // -----------------------------------------------------------------------------
 
 import { Platform } from 'react-native';
 
 export const colors = {
-  // Brand (sampled from the Al-Hidaya logo bronze)
-  primary: '#9A6A3C', // bronze — primary actions, brand
-  primaryDark: '#7C5430', // pressed / darker bronze
-  primaryLight: '#F3E9DC', // cream tint — active states, badges, icon chips
-  accent: '#C9A24B', // gold highlight
+  // Brand (sampled from the Sabeel 114 logo olive green)
+  primary: '#4D5E35',        // olive green — primary actions, brand
+  primaryDark: '#3C4B28',    // pressed / darker olive
+  primaryLight: '#E6EDDA',   // light olive tint — active states, badges, icon chips
+  accent: '#7A9850',         // sage/chartreuse highlight
 
   // Surfaces
-  background: '#F7F4EF', // warm off-white app background
-  surface: '#FFFFFF', // cards, inputs
-  sidebar: '#2B2117', // deep espresso sidebar for contrast & focus
-  sidebarText: '#D8CCBC', // muted text on the dark sidebar
-  sidebarActive: '#3E3122', // active nav item background on the sidebar
+  background: '#F5F4EE',     // warm off-white app background
+  surface: '#FFFFFF',        // cards, inputs
+  sidebar: '#2A3820',        // deep olive/forest sidebar for contrast & focus
+  sidebarText: '#C5D1A8',    // muted cream-olive text on the dark sidebar
+  sidebarActive: '#384D2B',  // active nav item background on the sidebar
 
   // Text
-  text: '#2A2118', // espresso — primary text
-  textMuted: '#8A7E70', // secondary text / subtext
-  textOnPrimary: '#FFFFFF', // text on bronze buttons
+  text: '#252E18',           // very dark olive — primary text
+  textMuted: '#6B7A58',      // secondary text / subtext
+  textOnPrimary: '#FFFFFF',  // text on olive buttons
 
   // Status
-  success: '#2E8B57', // "active" badge text (green reads universally)
+  success: '#2E8B57',        // "active" badge text (green reads universally)
   successBg: '#E6F2EB',
   warning: '#B7791F',
   warningBg: '#FBF1DD',
-  danger: '#C0392B', // sign out + validation errors
+  danger: '#C0392B',         // sign out + validation errors
   dangerBg: '#FBEBE9',
 
   // Lines / misc
-  border: '#E7E0D6',
-  inputBorder: '#DCD3C6',
-  placeholder: '#A99E8E',
+  border: '#D5DEC5',
+  inputBorder: '#C8D4B5',
+  placeholder: '#8E9E78',
 };
 
 // Consistent spacing scale (multiples of 4).
@@ -66,9 +66,9 @@ export const radii = {
 // while native iOS/Android still use shadow*/elevation. Platform.select gives
 // each platform the right API and silences the web deprecation warning.
 export const shadow = Platform.select({
-  web: { boxShadow: '0 6px 16px rgba(42, 33, 24, 0.10)' },
+  web: { boxShadow: '0 6px 16px rgba(37, 46, 24, 0.10)' },
   default: {
-    shadowColor: '#2A2118',
+    shadowColor: '#252E18',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
