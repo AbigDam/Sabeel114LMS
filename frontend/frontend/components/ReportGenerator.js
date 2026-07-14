@@ -131,10 +131,6 @@ async function createReportCard(baseUrl, payload) {
 // ---------------------------------------------------------------------------
 function clamp(val, min, max) { return Math.min(max, Math.max(min, val)); }
 
-
-
-
-
 function computeScores(logs) {
   const present = logs.filter(l => l.attendance !== 'Absent' && l.attendance !== 'Excused Absence' && l.attendance !== 1 && l.attendance !== 2);
 

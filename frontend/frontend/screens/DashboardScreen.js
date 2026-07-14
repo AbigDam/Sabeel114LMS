@@ -170,6 +170,14 @@ function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
             <Text style={styles.publicLeaderboardButtonText}>View Public Leaderboard</Text>
           </Pressable>
 
+          <Pressable
+            style={styles.createClassButton}
+            onPress={() => navigation.navigate('CreateClassAccounts')}
+          >
+            <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.createClassButtonText}>Create Class</Text>
+          </Pressable>
+          
           <View style={styles.largeCardGrid}>
             {courses.map((course) => (
               <View key={course.id} style={styles.courseCardContainerOverride}>
@@ -620,6 +628,28 @@ const styles = StyleSheet.create({
   logoutButton: { padding: 8, backgroundColor: 'rgb(221, 5, 5)', borderRadius: 8 },
 
   scrollCanvas: { padding: 32, maxWidth: 1600, width: '100%', alignSelf: 'center' },
+  createClassButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    backgroundColor: BRONZE_COLORS.bronzeBright,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  createClassButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  hubWelcomeBanner: {
+    backgroundColor: BRONZE_COLORS.surfaceWhite,
+    borderRadius: 14,
+    padding: 32,
+    borderLeftWidth: 8,
+    borderLeftColor: BRONZE_COLORS.bronzeAccent,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: BRONZE_COLORS.borderLight,
+  },
 
   /* Admin bar */
   adminBar: {
