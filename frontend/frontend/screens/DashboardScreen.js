@@ -169,14 +169,6 @@ function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
             <Ionicons name="trophy-outline" size={20} color={BRONZE_COLORS.bronzeBright} />
             <Text style={styles.publicLeaderboardButtonText}>View Public Leaderboard</Text>
           </Pressable>
-
-          <Pressable
-            style={styles.createClassButton}
-            onPress={() => navigation.navigate('CreateClassAccounts')}
-          >
-            <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.createClassButtonText}>Create Class</Text>
-          </Pressable>
           
           <View style={styles.largeCardGrid}>
             {courses.map((course) => (
