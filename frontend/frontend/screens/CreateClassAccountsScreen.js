@@ -33,9 +33,6 @@ const emptyStudent = () => ({ first_name: '', last_name: '', email: '', parent_i
 export default function CreateClassAccountsScreen({ navigation }) {
   // --- Class fields ---
   const [className, setClassName] = useState('');
-  const [program, setProgram] = useState('');
-  const [schedule, setSchedule] = useState('');
-  const [room, setRoom] = useState('');
   const [gender, setGender] = useState('');
   const [teachers, setTeachers] = useState([]);
   const [selectedTeachers, setSelectedTeachers] = useState([null]);
@@ -130,11 +127,9 @@ export default function CreateClassAccountsScreen({ navigation }) {
 
   function validate() {
     const newErrors = {};
-
     if (!className.trim()) newErrors.className = 'Class name is required.';
-    if (!program.trim()) newErrors.program = 'Program is required.';
-    if (!schedule.trim()) newErrors.schedule = 'Schedule is required.';
-    if (!room.trim()) newErrors.room = 'Room is required.';
+
+
 
     const studentErrors = students.map((s) => {
       const rowErr = {};
@@ -159,9 +154,6 @@ export default function CreateClassAccountsScreen({ navigation }) {
 
     const payload = {
       class_name: className.trim(),
-      program: program.trim(),
-      schedule: schedule.trim(),
-      room: room.trim(),
       gender: gender,
       teacher_ids: selectedTeachers.filter((id) => id !== null),
       first_names: students.map((s) => s.first_name.trim()),
@@ -270,49 +262,22 @@ export default function CreateClassAccountsScreen({ navigation }) {
             placeholder="e.g. Quran Memorization A"
             error={errors.className}
           />
-          <Field
-            label="Program"
-            value={program}
-            onChangeText={setProgram}
-            placeholder="e.g. Weekend Hifz Program"
-            error={errors.program}
-          />
-          <View style={styles.row2}>
-            <View style={styles.row2Item}>
-              <Field
-                label="Schedule"
-                value={schedule}
-                onChangeText={setSchedule}
-                placeholder="e.g. Sat 10am–12pm"
-                error={errors.schedule}
-              />
-            </View>
-            <View style={styles.row2Item}>
-              <Field
-                label="Room"
-                value={room}
-                onChangeText={setRoom}
-                placeholder="e.g. Room 204"
-                error={errors.room}
-              />
-            </View>
-            <View style={styles.row2Item}>
-              <Dropdown
-                style={styles.dropdown}
-                placeholderStyle={styles.dropdownPlaceholder}
-                selectedTextStyle={styles.dropdownSelected}
-                itemTextStyle={styles.dropdownItem}
-                data={[
-                  { label: 'Male', value: true },
-                  { label: 'Female', value: false },
-                ]}
-                labelField="label"
-                valueField="value"
-                placeholder="Select a gender..."
-                value={gender}
-                onChange={(item) => setGender(item.value)}
-              />
-            </View>
+          <View style={styles.row2Item}>
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownPlaceholder}
+              selectedTextStyle={styles.dropdownSelected}
+              itemTextStyle={styles.dropdownItem}
+              data={[
+                { label: 'Male', value: true },
+                { label: 'Female', value: false },
+              ]}
+              labelField="label"
+              valueField="value"
+              placeholder="Select a gender..."
+              value={gender}
+              onChange={(item) => setGender(item.value)}
+            />
           </View>
         </View>
         <View style={styles.sectionHeaderRow}>
@@ -337,6 +302,9 @@ export default function CreateClassAccountsScreen({ navigation }) {
               placeholderStyle={styles.dropdownPlaceholder}
               selectedTextStyle={styles.dropdownSelected}
               itemTextStyle={styles.dropdownItem}
+              search
+              searchPlaceholder="Search teachers..."
+              maxHeight={400}
               data={teachers.map((t) => ({
                 label: `${t.first_name} ${t.last_name} (${t.username})`,
                 value: t.id,
