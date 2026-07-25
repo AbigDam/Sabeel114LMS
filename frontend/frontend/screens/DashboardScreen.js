@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,12 @@ const ROLE_PARENT = 0;
 const ROLE_TEACHER = 1;
 const ROLE_STUDENT = 2;
 
+// Superuser-only course filter: their own classes vs. every class in the school
+const SCOPE_TABS = [
+  ['mine', 'My Classes'],
+  ['all', 'All Classes'],
+];
+
 const BRONZE_COLORS = {
   bronzeDeep: '#2A3820',
   bronzeBright: '#4D5E35',
@@ -44,9 +50,9 @@ const BRONZE_COLORS = {
 };
 
 const ADMIN_COLORS = {
-  bg: '#1F1B16',
-  accent: '#D97706',
-  text: '#F5F1EA',
+  bg: '#2A3820',
+  accent: '#f4f6f2',
+  text: '#d7dece',
 };
 
 /* ------------------------------------------------------------------ */
@@ -135,9 +141,18 @@ function AdminBar({ navigation }) {
 /* ------------------------------------------------------------------ */
 /* Teacher dashboard body                                            */
 /* ------------------------------------------------------------------ */
-function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
+function TeacherDashboardBody({
+  teacher,
+  courses,
+  announcements,
+  navigation,
+  isSuperuser,
+  scope,
+  setScope,
+}) {
   const totalStudents = courses.reduce((sum, c) => sum + c.students, 0);
   const classCount = courses.length;
+  const showingAll = isSuperuser && scope === 'all';
 
   return (
     <>
@@ -151,16 +166,42 @@ function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
       </View>
 
       <View style={styles.metricsContainerGrid}>
-        <LargeStatCard icon="account-multiple" value={totalStudents} label="Enrolled Students" />
-        <LargeStatCard icon="school" value={classCount} label="Active Class Sections" />
+        <LargeStatCard
+          icon="account-multiple"
+          value={totalStudents}
+          label={showingAll ? 'Enrolled Students (All)' : 'Enrolled Students'}
+        />
+        <LargeStatCard
+          icon="school"
+          value={classCount}
+          label={showingAll ? 'Class Sections (All)' : 'Active Class Sections'}
+        />
       </View>
 
       <View style={styles.hubContentSplit}>
         <View style={styles.coursesMainSection}>
           <View style={styles.hubSectionHeader}>
             <View style={styles.sectionTitleIndicator} />
-            <Text style={styles.hubSectionTitleText}>Your Teaching Courses</Text>
+            <Text style={styles.hubSectionTitleText}>
+              {showingAll ? 'All Classes' : 'Your Teaching Courses'}
+            </Text>
           </View>
+
+          {isSuperuser && (
+            <View style={styles.scopeToggle}>
+              {SCOPE_TABS.map(([key, label]) => (
+                <Pressable
+                  key={key}
+                  style={[styles.scopeTab, scope === key && styles.scopeTabActive]}
+                  onPress={() => setScope(key)}
+                >
+                  <Text style={[styles.scopeTabText, scope === key && styles.scopeTabTextActive]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           <Pressable
             style={styles.publicLeaderboardButton}
@@ -169,16 +210,25 @@ function TeacherDashboardBody({ teacher, courses, announcements, navigation }) {
             <Ionicons name="trophy-outline" size={20} color={BRONZE_COLORS.bronzeBright} />
             <Text style={styles.publicLeaderboardButtonText}>View Public Leaderboard</Text>
           </Pressable>
-          
+
           <View style={styles.largeCardGrid}>
-            {courses.map((course) => (
-              <View key={course.id} style={styles.courseCardContainerOverride}>
-                <CourseCard
-                  course={course}
-                  onViewDetails={() => navigation.navigate('StudentRoster', { course })}
-                />
-              </View>
-            ))}
+            {courses.length === 0 ? (
+              <Text style={styles.emptyCoursesText}>
+                {showingAll
+                  ? 'There are no classes yet.'
+                  : "You aren't assigned to any classes yet." +
+                    (isSuperuser ? ' Switch to All Classes to see the whole school.' : '')}
+              </Text>
+            ) : (
+              courses.map((course) => (
+                <View key={course.id} style={styles.courseCardContainerOverride}>
+                  <CourseCard
+                    course={course}
+                    onViewDetails={() => navigation.navigate('StudentRoster', { course })}
+                  />
+                </View>
+              ))
+            )}
           </View>
         </View>
 
@@ -354,6 +404,10 @@ export default function DashboardScreen({ navigation }) {
   const [courses, setCourses] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
 
+  // Superusers get every classroom back from select_classes/, so they also get a
+  // toggle to narrow it down to the ones they're actually assigned to.
+  const [courseScope, setCourseScope] = useState('mine');
+
   const [students, setStudents] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentsError, setStudentsError] = useState(null);
@@ -379,7 +433,7 @@ export default function DashboardScreen({ navigation }) {
 
   // Teacher-only data
   useEffect(() => {
-    if (!teacher || teacher.role !== ROLE_TEACHER) return;
+    if (!teacher || (teacher.role !== ROLE_TEACHER && !teacher.is_superuser)) return;
 
     async function loadCourses() {
       try {
@@ -481,9 +535,22 @@ export default function DashboardScreen({ navigation }) {
     }
   }
 
-  const isTeacher = teacher?.role === ROLE_TEACHER;
+  const isTeacher = teacher?.role === ROLE_TEACHER || !!teacher?.is_superuser;
   const isStudent = teacher?.role === ROLE_STUDENT;
   const isParent = teacher?.role === ROLE_PARENT;
+  const isSuperuser = !!teacher?.is_superuser;
+
+  // Classes this user is actually listed as a teacher of. For a regular teacher
+  // this is everything select_classes/ returned anyway; for a superuser it's the
+  // subset of the school-wide list they're assigned to. Falls back to the full
+  // list if the backend didn't send an id, so the grid can never come up empty
+  // just because current_user/ is out of date.
+  const myCourses = useMemo(() => {
+    if (teacher?.id == null) return courses;
+    return courses.filter((c) => Array.isArray(c.teachers) && c.teachers.includes(teacher.id));
+  }, [courses, teacher?.id]);
+
+  const visibleCourses = isSuperuser && courseScope === 'all' ? courses : myCourses;
 
   // Sidebar (course list / sign out) is only meaningful for teachers
   const showSidebarChrome = isTeacher;
@@ -534,8 +601,8 @@ export default function DashboardScreen({ navigation }) {
         {showSidebarChrome && isWide && sidebarVisible && (
           <View style={styles.desktopNavWrapper}>
             <Sidebar
-              courses={courses}
-              activeId={courses[0]?.id}
+              courses={visibleCourses}
+              activeId={visibleCourses[0]?.id}
               onNavigate={handleNavigateClass}
               onSignOut={handleSignOut}
               onClose={() => setSidebarVisible(false)}
@@ -549,9 +616,12 @@ export default function DashboardScreen({ navigation }) {
           ) : isTeacher ? (
             <TeacherDashboardBody
               teacher={teacher}
-              courses={courses}
+              courses={visibleCourses}
               announcements={announcements}
               navigation={navigation}
+              isSuperuser={isSuperuser}
+              scope={courseScope}
+              setScope={setCourseScope}
             />
           ) : isStudent ? (
             <StudentDashboardBody teacher={teacher} navigation={navigation} />
@@ -580,8 +650,8 @@ export default function DashboardScreen({ navigation }) {
 
           <Animated.View style={[styles.mobileDrawerContainer, { transform: [{ translateX }] }]}>
             <Sidebar
-              courses={courses}
-              activeId={courses[0]?.id}
+              courses={visibleCourses}
+              activeId={visibleCourses[0]?.id}
               onNavigate={handleNavigateClass}
               onSignOut={handleSignOut}
               onClose={() => setMenuOpen(false)}
@@ -686,6 +756,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   publicLeaderboardButtonText: { color: BRONZE_COLORS.badgeText, fontWeight: '700', fontSize: 15 },
+
+  /* Superuser course scope toggle */
+  scopeToggle: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    backgroundColor: BRONZE_COLORS.badgeBg,
+    borderWidth: 1,
+    borderColor: BRONZE_COLORS.borderLight,
+    borderRadius: 10,
+    padding: 4,
+    gap: 4,
+    marginBottom: 20,
+  },
+  scopeTab: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 8 },
+  scopeTabActive: { backgroundColor: BRONZE_COLORS.bronzeBright },
+  scopeTabText: { color: BRONZE_COLORS.textMuted, fontWeight: '700', fontSize: 14 },
+  scopeTabTextActive: { color: '#ffffff' },
+
+  emptyCoursesText: {
+    fontSize: 16,
+    color: BRONZE_COLORS.textMuted,
+    lineHeight: 24,
+    paddingVertical: 24,
+  },
 
   hubWelcomeBanner: {
     backgroundColor: BRONZE_COLORS.surfaceWhite,

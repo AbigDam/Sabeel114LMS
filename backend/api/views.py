@@ -220,15 +220,19 @@ class CreateClassView(generics.CreateAPIView):
 
 # Return all Classes of a Teacher
 class FilterClasses(APIView):
-    def get(self, request):
-        permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
         teacher_id = request.user.id
         all_classes = Classroom.objects.all()
-        classes = []
-        for classroom in all_classes:
-            if teacher_id in classroom.teachers:
-                classes.append(classroom)
+ #       classes = []
+        if request.user.is_superuser or request.user.is_staff:
+            classes = all_classes
+        else:
+            classes = [classroom for classroom in all_classes if classroom.teachers and teacher_id in classroom.teachers]
+        # for classroom in all_classes:
+        #    if teacher_id in classroom.teachers:
+        #         classes.append(classroom)
         serializer  = ClassSerializer(classes, many=True)
         return Response(serializer.data)
 
@@ -237,6 +241,7 @@ class CurrentUser(APIView):
 
     def get(self, request):
         return Response({
+            "id": request.user.id,
             "first_name": request.user.first_name,
             "last_name": request.user.last_name,
             "email": request.user.email,

@@ -161,7 +161,7 @@ export default function App() {
                   <Stack.Screen name="AppError">
                     {() => <AppLoadError message={userError} onRetry={checkAuth} />}
                   </Stack.Screen>
-                ) : !VALID_ROLES.includes(user.role) ? (
+                ) : !VALID_ROLES.includes(user.role) && !user.is_superuser ? (
                   <Stack.Screen name="AppError">
                     {() => (
                       <AppLoadError
@@ -170,8 +170,8 @@ export default function App() {
                       />
                     )}
                   </Stack.Screen>
-                ) : user.role === ROLE_TEACHER ? (
-                  // Teacher (and superuser, since all superusers are teachers).
+                ) : user.role === ROLE_TEACHER || user.is_superuser ? (
+                  // Teacher or superuser.
                   // Admin-only screens (PrivateLeaderboard, CreateClassAccounts)
                   // are registered here too — DashboardScreen only shows the
                   // links to them when user.is_superuser is true, so a
