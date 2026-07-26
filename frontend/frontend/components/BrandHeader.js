@@ -8,13 +8,14 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
 
 import { brand, brandImages } from '../constants/brand';
-import { colors, spacing, radii, fonts } from '../constants/theme';
+import { colors, spacing, radii, type } from '../constants/theme';
 
 export default function BrandHeader() {
   return (
     <View style={styles.container}>
       <Image source={brandImages.logo} style={styles.logo} resizeMode="contain" />
       <Text style={styles.name}>{brand.name}</Text>
+      <View style={styles.rule} />
       <View style={styles.pill}>
         <Text style={styles.pillText}>School Portal</Text>
       </View>
@@ -28,28 +29,32 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   logo: {
-    width: 96,
-    height: 88,
-    marginBottom: spacing.sm,
+    width: 138,
+    height: 126,
+    marginBottom: spacing.md,
   },
   name: {
-    fontSize: fonts.sizes.title,
-    fontWeight: '800',
-    color: colors.text,
+    ...type.title,
+    fontSize: 24,
     letterSpacing: 0.3,
   },
-  pill: {
+  rule: {
+    width: 36,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.gold,
     marginTop: spacing.sm,
+  },
+  pill: {
+    marginTop: spacing.md,
     backgroundColor: colors.primaryLight,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radii.pill,
   },
   pillText: {
+    ...type.eyebrow,
     color: colors.primaryDark,
-    fontSize: fonts.sizes.caption,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    fontSize: 11,
   },
 });

@@ -4,16 +4,17 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiCall } from '../api.js';
 import BarChart from './BarChart';
 import { computeScore, isPresent, scoreToCategory } from '../utils/score';
+import { colors, fontFamilies } from '../constants/theme';
 
 const BRONZE = {
-  bronzeDeep: '#2A3820',
-  bronzeBright: '#4D5E35',
-  bronzeAccent: '#6B7A58',
-  surfaceWhite: '#FFFFFF',
-  textDark: '#111827',
-  textMuted: '#4B5563',
-  borderLight: '#E5E7EB',
-  badgeBg: '#E6EDDA',
+  bronzeDeep: colors.sidebar,
+  bronzeBright: colors.primary,
+  bronzeAccent: colors.accent,
+  surfaceWhite: colors.surface,
+  textDark: colors.text,
+  textMuted: colors.textMuted,
+  borderLight: colors.border,
+  badgeBg: colors.primaryLight,
 };
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -198,13 +199,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  studentName: { fontSize: 18, fontWeight: '700', color: BRONZE.textDark },
+  studentName: { fontFamily: fontFamilies.displaySemibold, fontSize: 19, color: BRONZE.textDark },
 
   chartSection: { marginTop: 20 },
   chartSectionHeaderRow: { marginBottom: 10 },
-  chartSectionLabel: { fontSize: 14, fontWeight: '700', color: BRONZE.textMuted },
-  scaleNote: { fontSize: 12, color: BRONZE.textMuted, marginTop: 10, fontStyle: 'italic' },
-  errorText: { fontSize: 14, color: '#B91C1C', marginVertical: 12 },
+  chartSectionLabel: { fontFamily: fontFamilies.bodyBold, fontSize: 14, color: BRONZE.textMuted },
+  scaleNote: { fontFamily: fontFamilies.displayItalic, fontSize: 12, color: BRONZE.textMuted, marginTop: 10 },
+  errorText: { fontFamily: fontFamilies.bodyMedium, fontSize: 14, color: '#B91C1C', marginVertical: 12 },
 
   weekSection: {
     marginTop: 20,
@@ -215,21 +216,21 @@ const styles = StyleSheet.create({
   weekGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   dayCell: {
     width: 120,
-    backgroundColor: '#FAF9F6',
+    backgroundColor: colors.background,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: BRONZE.borderLight,
     padding: 10,
     alignItems: 'center',
   },
-  dayLabel: { fontSize: 13, fontWeight: '700', color: BRONZE.bronzeAccent },
-  dayDate: { fontSize: 12, color: BRONZE.textMuted, marginTop: 2, marginBottom: 8 },
+  dayLabel: { fontFamily: fontFamilies.bodyBold, fontSize: 13, color: BRONZE.bronzeAccent },
+  dayDate: { fontFamily: fontFamilies.bodyRegular, fontSize: 12, color: BRONZE.textMuted, marginTop: 2, marginBottom: 8 },
   dayScoreBadge: {
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  dayScoreText: { fontSize: 13, fontWeight: '800', textAlign: 'center' },
-  dayAttendanceText: { fontSize: 12, fontWeight: '600', color: BRONZE.textMuted, marginTop: 6 },
-  dayComment: { fontSize: 11, color: BRONZE.textMuted, marginTop: 8, textAlign: 'center' },
+  dayScoreText: { fontFamily: fontFamilies.bodyExtraBold, fontSize: 13, textAlign: 'center' },
+  dayAttendanceText: { fontFamily: fontFamilies.bodySemibold, fontSize: 12, color: BRONZE.textMuted, marginTop: 6 },
+  dayComment: { fontFamily: fontFamilies.bodyRegular, fontSize: 11, color: BRONZE.textMuted, marginTop: 8, textAlign: 'center' },
 });

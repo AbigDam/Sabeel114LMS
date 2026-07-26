@@ -13,11 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import Sidebar from '../components/Sidebar';
 import CourseCard from '../components/CourseCard';
 import ParentStudentCard from '../components/ParentStudentCard';
+import Reveal from '../components/Reveal';
 import { brand, brandImages } from '../constants/brand';
+import { colors, fontFamilies, gradients } from '../constants/theme';
 import { apiCall } from '../api.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
@@ -36,23 +39,26 @@ const SCOPE_TABS = [
   ['all', 'All Classes'],
 ];
 
+// Aliased to the shared theme so this screen can no longer drift from the
+// rest of the app's palette — kept as a local name only to avoid rewriting
+// every reference below.
 const BRONZE_COLORS = {
-  bronzeDeep: '#2A3820',
-  bronzeBright: '#4D5E35',
-  bronzeAccent: '#6B7A58',
-  bgCanvas: '#F5F4EE',
-  surfaceWhite: '#FFFFFF',
-  textDark: '#111827',
-  textMuted: '#4B5563',
-  borderLight: '#E5E7EB',
-  badgeBg: '#E6EDDA',
-  badgeText: '#3C4B28',
+  bronzeDeep: colors.sidebar,
+  bronzeBright: colors.primary,
+  bronzeAccent: colors.accent,
+  bgCanvas: colors.background,
+  surfaceWhite: colors.surface,
+  textDark: colors.text,
+  textMuted: colors.textMuted,
+  borderLight: colors.border,
+  badgeBg: colors.primaryLight,
+  badgeText: colors.primaryDark,
 };
 
 const ADMIN_COLORS = {
-  bg: '#2A3820',
-  accent: '#f4f6f2',
-  text: '#d7dece',
+  bg: colors.sidebar,
+  accent: colors.gold,
+  text: colors.sidebarText,
 };
 
 /* ------------------------------------------------------------------ */
@@ -89,11 +95,11 @@ function AnimatedSwitch({ value, onValueChange, disabled }) {
   );
 }
 
-function LargeStatCard({ icon, value, label }) {
+function LargeStatCard({ icon, value, label, accent = colors.gold }) {
   return (
-    <View style={styles.largeStatCard}>
-      <View style={styles.statIconBadge}>
-        <MaterialCommunityIcons name={icon} size={32} color={BRONZE_COLORS.bronzeDeep} />
+    <View style={[styles.largeStatCard, { borderTopColor: accent }]}>
+      <View style={[styles.statIconBadge, { borderColor: accent }]}>
+        <MaterialCommunityIcons name={icon} size={28} color={accent} />
       </View>
       <View style={styles.statTextGroup}>
         <Text style={styles.largeStatValue}>{value}</Text>
@@ -105,36 +111,51 @@ function LargeStatCard({ icon, value, label }) {
 
 /* ------------------------------------------------------------------ */
 /* Admin bar — only ever rendered for superusers                       */
+/* Styled like a wax-sealed notice rather than a bootstrap alert: a    */
+/* deep-olive banner, a gilt seal badge, and outlined ghost pills with */
+/* one filled gold pill for the primary/public action.                 */
 /* ------------------------------------------------------------------ */
 function AdminBar({ navigation }) {
   return (
-    <View style={styles.adminBar}>
+    <LinearGradient
+      colors={gradients.sidebar}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.adminBar}
+    >
       <View style={styles.adminBarLeft}>
-        <MaterialCommunityIcons name="shield-crown" size={22} color={ADMIN_COLORS.accent} />
-        <Text style={styles.adminBarTitle}>Admin Only</Text>
+        <View style={styles.adminSealBadge}>
+          <MaterialCommunityIcons name="shield-crown" size={20} color={colors.goldDark} />
+        </View>
+        <View>
+          <Text style={styles.adminBarTitle}>Admin Only</Text>
+          <Text style={styles.adminBarSubtitle}>Superuser tools for the whole school</Text>
+        </View>
       </View>
       <View style={styles.adminBarLinks}>
         <Pressable
-          style={styles.adminBarLink}
+          style={({ pressed }) => [styles.adminBarLink, pressed && styles.adminBarLinkPressed]}
           onPress={() => navigation.navigate('PrivateLeaderboard')}
         >
-          <Ionicons name="trophy-outline" size={18} color={ADMIN_COLORS.text} />
+          <Ionicons name="trophy-outline" size={17} color={ADMIN_COLORS.text} />
           <Text style={styles.adminBarLinkText}>Private Leaderboard</Text>
         </Pressable>
         <Pressable
-          style={styles.adminBarLink}
+          style={({ pressed }) => [styles.adminBarLink, pressed && styles.adminBarLinkPressed]}
           onPress={() => navigation.navigate('CreateClassAccounts')}
         >
-          <Ionicons name="add-circle-outline" size={18} color={ADMIN_COLORS.text} />
+          <Ionicons name="add-circle-outline" size={17} color={ADMIN_COLORS.text} />
           <Text style={styles.adminBarLinkText}>Create Class</Text>
         </Pressable>
-
-        <Pressable onPress={() => navigation.navigate('Leaderboard')} hitSlop={8}>
-          <Text style={styles.link}>View Leaderboard</Text>
+        <Pressable
+          style={({ pressed }) => [styles.adminBarLinkPrimary, pressed && styles.adminBarLinkPrimaryPressed]}
+          onPress={() => navigation.navigate('Leaderboard')}
+        >
+          <Ionicons name="globe-outline" size={17} color={colors.sidebar} />
+          <Text style={styles.adminBarLinkPrimaryText}>View Public Leaderboard</Text>
         </Pressable>
-
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -156,27 +177,39 @@ function TeacherDashboardBody({
 
   return (
     <>
-      {teacher?.is_superuser && <AdminBar navigation={navigation} />}
+      {teacher?.is_superuser && (
+        <Reveal index={0}>
+          <AdminBar navigation={navigation} />
+        </Reveal>
+      )}
 
-      <View style={styles.hubWelcomeBanner}>
-        <Text style={styles.hubGreeting}>Teacher {teacher?.username}</Text>
-        <Text style={styles.hubSubGreeting}>
-          Sabeel 114 Teacher Portal Dashboard — Manage your active classes and student logs.
-        </Text>
-      </View>
+      <Reveal index={1}>
+        <View style={styles.hubWelcomeBanner}>
+          <Image source={brandImages.logo} style={styles.welcomeWatermark} resizeMode="contain" />
+          <Text style={styles.hubGreeting}>Teacher {teacher?.username}</Text>
+          <View style={styles.welcomeRule} />
+          <Text style={styles.hubSubGreeting}>
+            Sabeel 114 Teacher Portal Dashboard — Manage your active classes and student logs.
+          </Text>
+        </View>
+      </Reveal>
 
-      <View style={styles.metricsContainerGrid}>
-        <LargeStatCard
-          icon="account-multiple"
-          value={totalStudents}
-          label={showingAll ? 'Enrolled Students (All)' : 'Enrolled Students'}
-        />
-        <LargeStatCard
-          icon="school"
-          value={classCount}
-          label={showingAll ? 'Class Sections (All)' : 'Active Class Sections'}
-        />
-      </View>
+      <Reveal index={2}>
+        <View style={styles.metricsContainerGrid}>
+          <LargeStatCard
+            icon="account-multiple"
+            value={totalStudents}
+            label={showingAll ? 'Enrolled Students (All)' : 'Enrolled Students'}
+            accent={colors.gold}
+          />
+          <LargeStatCard
+            icon="school"
+            value={classCount}
+            label={showingAll ? 'Class Sections (All)' : 'Active Class Sections'}
+            accent={colors.primary}
+          />
+        </View>
+      </Reveal>
 
       <View style={styles.hubContentSplit}>
         <View style={styles.coursesMainSection}>
@@ -220,12 +253,14 @@ function TeacherDashboardBody({
                     (isSuperuser ? ' Switch to All Classes to see the whole school.' : '')}
               </Text>
             ) : (
-              courses.map((course) => (
+              courses.map((course, i) => (
                 <View key={course.id} style={styles.courseCardContainerOverride}>
-                  <CourseCard
-                    course={course}
-                    onViewDetails={() => navigation.navigate('StudentRoster', { course })}
-                  />
+                  <Reveal index={i} distance={12} style={styles.courseCardReveal}>
+                    <CourseCard
+                      course={course}
+                      onViewDetails={() => navigation.navigate('StudentRoster', { course })}
+                    />
+                  </Reveal>
                 </View>
               ))
             )}
@@ -235,14 +270,19 @@ function TeacherDashboardBody({
         <View style={styles.utilitiesSideSection}>
           <View style={styles.hubUtilityWidget}>
             <View style={styles.widgetHeaderRow}>
-              <MaterialCommunityIcons name="bullhorn" size={26} color={BRONZE_COLORS.bronzeAccent} />
+              <View style={styles.widgetIconChip}>
+                <MaterialCommunityIcons name="bullhorn" size={19} color={colors.primaryDark} />
+              </View>
               <Text style={styles.widgetHeadingText}>Notice Board</Text>
             </View>
             <View style={styles.announcementsListContainer}>
               {announcements.map((a) => (
                 <View key={a.id} style={styles.largeNoticeItemBlock}>
                   <View style={styles.noticeMetaRow}>
-                    <Text style={styles.noticeDateLabel}>{a.date}</Text>
+                    <View style={styles.noticeDateChip}>
+                      <Text style={styles.noticeDateLabel}>{a.date}</Text>
+                    </View>
+                    <View style={styles.noticeDots} />
                   </View>
                   <Text style={styles.noticeTitleLabelText}>{a.title}</Text>
                   <Text style={styles.noticeDetailBodyText}>{a.detail}</Text>
@@ -292,7 +332,9 @@ function EmailNotificationsCard({ enabled, onToggle, saving, error }) {
   return (
     <View style={styles.hubUtilityWidget}>
       <View style={styles.widgetHeaderRow}>
-        <MaterialCommunityIcons name="email-outline" size={26} color={BRONZE_COLORS.bronzeAccent} />
+        <View style={styles.widgetIconChip}>
+          <MaterialCommunityIcons name="email-outline" size={19} color={colors.primaryDark} />
+        </View>
         <Text style={styles.widgetHeadingText}>Email Notifications</Text>
       </View>
 
@@ -335,13 +377,17 @@ function ParentDashboardBody({
   return (
     <>
 
-      <View style={styles.hubWelcomeBanner}>
-        <Text style={styles.hubGreeting}>Welcome, {teacher?.username}</Text>
-        <Text style={styles.hubSubGreeting}>
-          Sabeel 114 Parent Portal Dashboard — Tap on a student to see their calendar for the current week, including daily scores
-          and teacher comments.
-        </Text>
-      </View>
+      <Reveal index={0}>
+        <View style={styles.hubWelcomeBanner}>
+          <Image source={brandImages.logo} style={styles.welcomeWatermark} resizeMode="contain" />
+          <Text style={styles.hubGreeting}>Welcome, {teacher?.username}</Text>
+          <View style={styles.welcomeRule} />
+          <Text style={styles.hubSubGreeting}>
+            Sabeel 114 Parent Portal Dashboard — Tap on a student to see their calendar for the current week, including daily scores
+            and teacher comments.
+          </Text>
+        </View>
+      </Reveal>
 
       <View style={styles.hubContentSplit}>
         <View style={styles.coursesMainSection}>
@@ -558,7 +604,7 @@ export default function DashboardScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
       {/* Top Header Bar */}
-      <View style={styles.hubHeader}>
+      <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.4 }} style={styles.hubHeader}>
         <View style={styles.headerLeft}>
           {showSidebarChrome &&
             (isWide ? (
@@ -581,21 +627,37 @@ export default function DashboardScreen({ navigation }) {
           {isWide ? (
             <>
               <Image source={brandImages.logo} style={styles.hubLogo} resizeMode="contain" />
-              <Text style={styles.hubTitle}>{brand.name}</Text>
+              <View>
+                <Text style={styles.hubTitle}>{brand.name}</Text>
+                <Text style={styles.hubTagline}>{brand.tagline}</Text>
+              </View>
             </>
           ) : null}
         </View>
 
         <View style={styles.headerRight}>
           <View style={styles.teacherBadgeContainer}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.teacherBadgeText}>{teacher?.username}</Text>
+            <View style={styles.teacherAvatar}>
+              <Text style={styles.teacherAvatarInitial}>
+                {(teacher?.username || '?').trim().charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.teacherBadgeText} numberOfLines={1}>{teacher?.username}</Text>
+              <View style={styles.teacherStatusRow}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.teacherStatusText}>Online</Text>
+              </View>
+            </View>
           </View>
-          <Pressable onPress={handleSignOut} style={styles.logoutButton}>
-            <Ionicons name="log-out-outline" size={26} color="#FFFFFF" />
+          <Pressable
+            onPress={handleSignOut}
+            style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutButtonPressed]}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#FBEBE9" />
           </Pressable>
         </View>
-      </View>
+      </LinearGradient>
 
       <View style={styles.mainLayout}>
         {showSidebarChrome && isWide && sidebarVisible && (
@@ -670,24 +732,77 @@ const styles = StyleSheet.create({
 
   hubHeader: {
     height: 76,
-    backgroundColor: BRONZE_COLORS.bronzeBright,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
-    borderBottomWidth: 4,
-    borderBottomColor: BRONZE_COLORS.bronzeDeep,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.gold,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   menuIconButton: { padding: 4, marginRight: 4, justifyContent: 'center', alignItems: 'center' },
-  hubLogo: { width: 92, height: 92, borderRadius: 12 },
-  hubTitle: { fontSize: 22, fontWeight: '300', color: '#FFFFFF', letterSpacing: 5, textTransform: 'lowercase' },
+  hubLogo: { width: 92, height: 84 },
+  hubTitle: {
+    fontFamily: fontFamilies.displayItalic,
+    fontSize: 22,
+    color: '#FFFFFF',
+    letterSpacing: 2.5,
+    textTransform: 'lowercase',
+  },
+  hubTagline: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 10.5,
+    color: colors.gold,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
 
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 20 },
-  teacherBadgeContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.18)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, gap: 10 },
-  onlineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#01885b' },
-  teacherBadgeText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  logoutButton: { padding: 8, backgroundColor: 'rgb(221, 5, 5)', borderRadius: 8 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  teacherBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 162, 75, 0.35)',
+    paddingVertical: 6,
+    paddingRight: 16,
+    paddingLeft: 6,
+    borderRadius: 26,
+    gap: 10,
+  },
+  teacherAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.55)',
+  },
+  teacherAvatarInitial: { fontFamily: fontFamilies.displayBlack, fontSize: 15, color: colors.sidebar },
+  teacherStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#3DDC97' },
+  teacherBadgeText: { fontFamily: fontFamilies.bodySemibold, color: '#FFFFFF', fontSize: 15 },
+  teacherStatusText: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  logoutButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+  },
+  logoutButtonPressed: { backgroundColor: 'rgba(192, 57, 43, 0.45)' },
 
   scrollCanvas: { padding: 32, maxWidth: 1600, width: '100%', alignSelf: 'center' },
   createClassButton: {
@@ -701,48 +816,60 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 20,
   },
-  createClassButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  hubWelcomeBanner: {
-    backgroundColor: BRONZE_COLORS.surfaceWhite,
-    borderRadius: 14,
-    padding: 32,
-    borderLeftWidth: 8,
-    borderLeftColor: BRONZE_COLORS.bronzeAccent,
-    marginBottom: 32,
-    borderWidth: 1,
-    borderColor: BRONZE_COLORS.borderLight,
-  },
+  createClassButtonText: { fontFamily: fontFamilies.bodyBold, color: '#FFFFFF', fontSize: 15 },
 
-  /* Admin bar */
+  /* Admin bar — a "wax seal" notice banner, not a bootstrap alert */
   adminBar: {
-    backgroundColor: ADMIN_COLORS.bg,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 16,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: ADMIN_COLORS.accent,
+    borderColor: 'rgba(201, 162, 75, 0.4)',
   },
-  adminBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  adminBarTitle: { color: ADMIN_COLORS.accent, fontWeight: '800', fontSize: 15, letterSpacing: 0.5, textTransform: 'uppercase' },
-  adminBarLinks: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  adminBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  adminSealBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.goldBg,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminBarTitle: { fontFamily: fontFamilies.bodyExtraBold, color: ADMIN_COLORS.accent, fontSize: 14, letterSpacing: 1.5, textTransform: 'uppercase' },
+  adminBarSubtitle: { fontFamily: fontFamilies.bodyRegular, color: ADMIN_COLORS.text, fontSize: 12.5, marginTop: 2, opacity: 0.8 },
+  adminBarLinks: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
   adminBarLink: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(217, 119, 6, 0.18)',
+    backgroundColor: 'rgba(201, 162, 75, 0.14)',
     borderWidth: 1,
-    borderColor: ADMIN_COLORS.accent,
-    paddingVertical: 8,
+    borderColor: 'rgba(201, 162, 75, 0.5)',
+    paddingVertical: 9,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: 9,
   },
-  adminBarLinkText: { color: ADMIN_COLORS.text, fontWeight: '700', fontSize: 14 },
+  adminBarLinkPressed: { backgroundColor: 'rgba(201, 162, 75, 0.28)' },
+  adminBarLinkText: { fontFamily: fontFamilies.bodyBold, color: ADMIN_COLORS.text, fontSize: 13.5 },
+  adminBarLinkPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.gold,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 9,
+  },
+  adminBarLinkPrimaryPressed: { backgroundColor: colors.goldDark },
+  adminBarLinkPrimaryText: { fontFamily: fontFamilies.bodyExtraBold, color: colors.sidebar, fontSize: 13.5 },
 
   publicLeaderboardButton: {
     flexDirection: 'row',
@@ -755,7 +882,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 20,
   },
-  publicLeaderboardButtonText: { color: BRONZE_COLORS.badgeText, fontWeight: '700', fontSize: 15 },
+  publicLeaderboardButtonText: { fontFamily: fontFamilies.bodyBold, color: BRONZE_COLORS.badgeText, fontSize: 15 },
 
   /* Superuser course scope toggle */
   scopeToggle: {
@@ -771,10 +898,12 @@ const styles = StyleSheet.create({
   },
   scopeTab: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 8 },
   scopeTabActive: { backgroundColor: BRONZE_COLORS.bronzeBright },
-  scopeTabText: { color: BRONZE_COLORS.textMuted, fontWeight: '700', fontSize: 14 },
+  scopeTabText: { fontFamily: fontFamilies.bodyBold, color: BRONZE_COLORS.textMuted, fontSize: 14 },
   scopeTabTextActive: { color: '#ffffff' },
 
   emptyCoursesText: {
+    width: '100%',
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: 16,
     color: BRONZE_COLORS.textMuted,
     lineHeight: 24,
@@ -782,17 +911,26 @@ const styles = StyleSheet.create({
   },
 
   hubWelcomeBanner: {
-    backgroundColor: BRONZE_COLORS.surfaceWhite,
-    borderRadius: 14,
+    backgroundColor: colors.kraft,
+    borderRadius: 16,
     padding: 32,
-    borderLeftWidth: 8,
-    borderLeftColor: BRONZE_COLORS.bronzeAccent,
     marginBottom: 32,
     borderWidth: 1,
-    borderColor: BRONZE_COLORS.borderLight,
+    borderColor: colors.kraftLine,
+    overflow: 'hidden',
   },
-  hubGreeting: { fontSize: 32, fontWeight: '800', color: BRONZE_COLORS.textDark },
-  hubSubGreeting: { fontSize: 18, color: BRONZE_COLORS.textMuted, marginTop: 8, lineHeight: 26 },
+  welcomeWatermark: {
+    position: 'absolute',
+    top: -26,
+    right: -22,
+    width: 180,
+    height: 180,
+    opacity: 0.09,
+    transform: [{ rotate: '8deg' }],
+  },
+  welcomeRule: { width: 56, height: 3, borderRadius: 2, backgroundColor: colors.gold, marginTop: 14, marginBottom: 14 },
+  hubGreeting: { fontFamily: fontFamilies.displayBlack, fontSize: 32, color: BRONZE_COLORS.textDark },
+  hubSubGreeting: { fontFamily: fontFamilies.displayItalic, fontSize: 18, color: BRONZE_COLORS.textMuted, lineHeight: 26, maxWidth: 640 },
 
   metricsContainerGrid: { flexDirection: 'row', gap: 24, flexWrap: 'wrap', marginBottom: 36 },
   largeStatCard: {
@@ -803,14 +941,23 @@ const styles = StyleSheet.create({
     padding: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 24,
+    gap: 22,
     borderWidth: 1,
     borderColor: BRONZE_COLORS.borderLight,
+    borderTopWidth: 4,
   },
-  statIconBadge: { width: 64, height: 64, borderRadius: 32, backgroundColor: BRONZE_COLORS.surfaceWhite, alignItems: 'center', justifyContent: 'center' },
+  statIconBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statTextGroup: { flex: 1 },
-  largeStatValue: { fontSize: 34, fontWeight: '800', color: BRONZE_COLORS.textDark, letterSpacing: -0.5 },
-  largeStatLabel: { fontSize: 16, fontWeight: '600', color: BRONZE_COLORS.textMuted, marginTop: 4 },
+  largeStatValue: { fontFamily: fontFamilies.displayBlack, fontSize: 36, color: BRONZE_COLORS.textDark, letterSpacing: -0.5 },
+  largeStatLabel: { fontFamily: fontFamilies.bodySemibold, fontSize: 16, color: BRONZE_COLORS.textMuted, marginTop: 4 },
 
   hubContentSplit: { flexDirection: 'row', gap: 32, flexWrap: 'wrap' },
   coursesMainSection: { flex: 4, minWidth: 450 },
@@ -818,10 +965,11 @@ const styles = StyleSheet.create({
 
   hubSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
   sectionTitleIndicator: { width: 6, height: 28, backgroundColor: BRONZE_COLORS.bronzeBright, borderRadius: 3 },
-  hubSectionTitleText: { fontSize: 22, fontWeight: '700', color: BRONZE_COLORS.textDark },
+  hubSectionTitleText: { fontFamily: fontFamilies.displayBold, fontSize: 22, color: BRONZE_COLORS.textDark },
 
-  largeCardGrid: { gap: 20 },
-  courseCardContainerOverride: { width: '100%' },
+  largeCardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 20 },
+  courseCardContainerOverride: { flexGrow: 1, flexBasis: 340, maxWidth: 440 },
+  courseCardReveal: { width: '100%' },
 
   hubUtilityWidget: {
     backgroundColor: BRONZE_COLORS.surfaceWhite,
@@ -830,17 +978,40 @@ const styles = StyleSheet.create({
     borderColor: BRONZE_COLORS.borderLight,
     padding: 24,
   },
-  widgetHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20, borderBottomWidth: 1, borderBottomColor: BRONZE_COLORS.borderLight, paddingBottom: 12 },
-  widgetHeadingText: { fontSize: 18, fontWeight: '700', color: BRONZE_COLORS.textDark },
+  widgetHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20, borderBottomWidth: 1, borderBottomColor: BRONZE_COLORS.borderLight, paddingBottom: 16 },
+  widgetIconChip: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  widgetHeadingText: { fontFamily: fontFamilies.displaySemibold, fontSize: 18, color: BRONZE_COLORS.textDark },
 
   announcementsListContainer: { gap: 20 },
   largeNoticeItemBlock: { borderBottomWidth: 1, borderBottomColor: BRONZE_COLORS.borderLight, paddingBottom: 16 },
-  noticeMetaRow: { marginBottom: 6 },
-  noticeDateLabel: { fontSize: 13, color: BRONZE_COLORS.bronzeBright, fontWeight: '700' },
-  noticeTitleLabelText: { fontSize: 17, fontWeight: '700', color: BRONZE_COLORS.textDark },
-  noticeDetailBodyText: { fontSize: 15, color: BRONZE_COLORS.textMuted, marginTop: 6, lineHeight: 22 },
+  noticeMetaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  noticeDateChip: { backgroundColor: colors.goldBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  noticeDateLabel: {
+    fontFamily: fontFamilies.bodyExtraBold,
+    fontSize: 11,
+    color: colors.goldDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  noticeDots: {
+    flex: 1,
+    marginLeft: 10,
+    borderBottomWidth: 1.5,
+    borderStyle: 'dotted',
+    borderColor: colors.inputBorder,
+    marginBottom: 2,
+  },
+  noticeTitleLabelText: { fontFamily: fontFamilies.displaySemibold, fontSize: 17, color: BRONZE_COLORS.textDark },
+  noticeDetailBodyText: { fontFamily: fontFamilies.bodyRegular, fontSize: 15, color: BRONZE_COLORS.textMuted, marginTop: 6, lineHeight: 22 },
 
-  mobileBackdropLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(120, 53, 15, 0.4)' },
+  mobileBackdropLayer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(33, 43, 24, 0.55)' },
   mobileDrawerContainer: { position: 'absolute', top: 62, bottom: 0, left: 0, width: DRAWER_WIDTH, backgroundColor: '#FFFFFF' },
 
   /* Student simple page */
@@ -854,8 +1025,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BRONZE_COLORS.borderLight,
   },
-  simplePageTitle: { fontSize: 24, fontWeight: '800', color: BRONZE_COLORS.textDark, marginTop: 16 },
-  simplePageBody: { fontSize: 16, color: BRONZE_COLORS.textMuted, textAlign: 'center', marginTop: 12, lineHeight: 24 },
+  simplePageTitle: { fontFamily: fontFamilies.displayBold, fontSize: 24, color: BRONZE_COLORS.textDark, marginTop: 16 },
+  simplePageBody: { fontFamily: fontFamilies.bodyRegular, fontSize: 16, color: BRONZE_COLORS.textMuted, textAlign: 'center', marginTop: 12, lineHeight: 24 },
   publicLeaderboardButtonLarge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -866,12 +1037,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 24,
   },
-  publicLeaderboardButtonLargeText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  publicLeaderboardButtonLargeText: { fontFamily: fontFamilies.bodyBold, color: '#FFFFFF', fontSize: 16 },
 
   /* Parent view */
   parentStudentList: { gap: 4 },
-  errorTextLarge: { fontSize: 16, color: '#B91C1C', marginVertical: 20 },
-  emptyStateText: { fontSize: 16, color: BRONZE_COLORS.textMuted, marginVertical: 20 },
+  errorTextLarge: { fontFamily: fontFamilies.bodyMedium, fontSize: 16, color: '#B91C1C', marginVertical: 20 },
+  emptyStateText: { fontFamily: fontFamilies.bodyRegular, fontSize: 16, color: BRONZE_COLORS.textMuted, marginVertical: 20 },
 
   /* Parent — email notifications card */
   notificationRow: {
@@ -880,9 +1051,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   notificationRowText: { flex: 1 },
-  notificationRowTitle: { fontSize: 15, fontWeight: '700', color: BRONZE_COLORS.textDark },
-  notificationRowSubtitle: { fontSize: 13, color: BRONZE_COLORS.textMuted, marginTop: 4, lineHeight: 19 },
-  errorTextSmall: { fontSize: 13, color: '#B91C1C', marginTop: 12 },
+  notificationRowTitle: { fontFamily: fontFamilies.bodyBold, fontSize: 15, color: BRONZE_COLORS.textDark },
+  notificationRowSubtitle: { fontFamily: fontFamilies.bodyRegular, fontSize: 13, color: BRONZE_COLORS.textMuted, marginTop: 4, lineHeight: 19 },
+  errorTextSmall: { fontFamily: fontFamilies.bodyMedium, fontSize: 13, color: '#B91C1C', marginTop: 12 },
   notificationSwitchArea: { width: 46, alignItems: 'center', justifyContent: 'center' },
   switchTrack: {
     width: 46,

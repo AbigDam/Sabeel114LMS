@@ -7,6 +7,21 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useFonts } from 'expo-font';
+import {
+  Fraunces_500Medium,
+  Fraunces_600SemiBold,
+  Fraunces_600SemiBold_Italic,
+  Fraunces_800ExtraBold,
+  Fraunces_900Black,
+} from '@expo-google-fonts/fraunces';
+import {
+  Karla_400Regular,
+  Karla_500Medium,
+  Karla_600SemiBold,
+  Karla_700Bold,
+  Karla_800ExtraBold,
+} from '@expo-google-fonts/karla';
 
 /* Screens */
 import LoginScreen from './screens/LoginScreen';
@@ -49,6 +64,19 @@ function AppLoadError({ message, onRetry }) {
 
 /* ---------------- ROOT APP ---------------- */
 export default function App() {
+
+  const [fontsLoaded] = useFonts({
+    Fraunces_500Medium,
+    Fraunces_600SemiBold,
+    Fraunces_600SemiBold_Italic,
+    Fraunces_800ExtraBold,
+    Fraunces_900Black,
+    Karla_400Regular,
+    Karla_500Medium,
+    Karla_600SemiBold,
+    Karla_700Bold,
+    Karla_800ExtraBold,
+  });
 
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
@@ -141,7 +169,7 @@ export default function App() {
 
   }, [authenticated]);
 
-  if (loading) return <LoadingScreen label="Fetching login…" />;
+  if (!fontsLoaded || loading) return <LoadingScreen label="Fetching login…" />;
 
   // If we're authenticated but still resolving the user's role, keep
   // showing a loading screen rather than mounting the navigator early.

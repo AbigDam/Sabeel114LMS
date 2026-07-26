@@ -1,5 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 
+import { colors, fontFamilies } from '../constants/theme';
+
 /**
  * Lightweight bar chart with no external chart library dependency.
  *
@@ -12,7 +14,7 @@ import { View, Text, StyleSheet } from 'react-native';
  *  - color: default bar color, used when a data point doesn't set barColor
  *  - height: pixel height of the chart plot area (default 140)
  */
-export default function BarChart({ data = [], color = '#B45309', height = 140, maxValue }) {
+export default function BarChart({ data = [], color = colors.primary, height = 140, maxValue }) {
   const scaleMax = maxValue ?? Math.max(1, ...data.map((d) => Number(d.value) || 0));
 
   return (
@@ -60,13 +62,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-around',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
     paddingBottom: 4,
   },
   barColumn: { alignItems: 'center', flex: 1 },
   bar: { width: 22, borderRadius: 6 },
-  valueLabel: { fontSize: 10, fontWeight: '700', color: '#4B5563', marginBottom: 4, maxWidth: 64, textAlign: 'center' },
+  valueLabel: {
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: 10,
+    color: colors.textMuted,
+    marginBottom: 4,
+    maxWidth: 64,
+    textAlign: 'center',
+  },
   axisRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 6 },
   axisLabelWrap: { flex: 1, alignItems: 'center' },
-  axisLabel: { fontSize: 11, color: '#4B5563', fontWeight: '600' },
+  axisLabel: { fontFamily: fontFamilies.bodySemibold, fontSize: 11, color: colors.textMuted },
 });

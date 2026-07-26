@@ -6,7 +6,7 @@ import AuthScene from '../components/AuthScene';
 import TextField from '../components/TextField';
 import PasswordStrength from '../components/PasswordStrength';
 import { isValidEmail, validatePassword } from '../constants/validation';
-import { colors, spacing, radii, fonts, shadow } from '../constants/theme';
+import { colors, spacing, radii, type, shadow } from '../constants/theme';
 import { apiCall } from '../api.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
@@ -195,17 +195,15 @@ async function handleSignup() {
 }
 
 const styles = StyleSheet.create({
-  welcome: { fontSize: fonts.sizes.heading, fontWeight: '800', color: colors.text },
+  welcome: { ...type.heading, marginBottom: spacing.xs },
   welcomeSub: {
-    fontSize: fonts.sizes.body,
+    ...type.body,
     color: colors.textMuted,
-    marginTop: spacing.xs,
     marginBottom: spacing.xl,
   },
   roleLabel: {
-    fontSize: fonts.sizes.body,
-    fontWeight: '600',
-    color: colors.text,
+    ...type.eyebrow,
+    fontSize: 11,
     marginBottom: spacing.sm,
   },
   roleRow: {
@@ -223,23 +221,22 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1.5,
     borderColor: colors.border ?? '#E5E7EB',
-    backgroundColor: colors.surface ?? '#FFFFFF',
+    backgroundColor: colors.background,
   },
   roleOptionSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   roleOptionText: {
-    fontSize: fonts.sizes.body,
-    fontWeight: '600',
+    ...type.bodyMedium,
     color: colors.textMuted,
   },
   roleOptionTextSelected: {
     color: colors.textOnPrimary,
   },
   roleErrorText: {
+    ...type.caption,
     color: colors.danger ?? '#DD0505',
-    fontSize: 12,
     marginBottom: spacing.md,
   },
   primaryBtn: {
@@ -254,8 +251,8 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   primaryBtnPressed: { backgroundColor: colors.primaryDark },
-  primaryBtnText: { color: colors.textOnPrimary, fontSize: fonts.sizes.subtitle, fontWeight: '700' },
+  primaryBtnText: { ...type.button },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl },
-  footerText: { color: colors.textMuted, fontSize: fonts.sizes.body },
-  link: { color: colors.primary, fontSize: fonts.sizes.body, fontWeight: '700' },
+  footerText: { ...type.body, color: colors.textMuted },
+  link: { ...type.bodyBold, color: colors.primary },
 });

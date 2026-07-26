@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api.js'
 import { brand }                                 from '../constants/brand';
-import { colors, radii, shadow, spacing }        from '../constants/theme';
+import { colors, fontFamilies, radii, shadow, spacing } from '../constants/theme';
 
 // ---------------------------------------------------------------------------
 // Student row
@@ -192,8 +192,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
+    fontFamily: fontFamilies.displayBold,
     fontSize: 17,
-    fontWeight: '700',
     color: colors.text,
   },
 
@@ -215,6 +215,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: spacing.sm + 2,
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: 15,
     color: colors.text,
   },

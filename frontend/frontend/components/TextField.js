@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, spacing, radii, fonts } from '../constants/theme';
+import { colors, spacing, radii, type } from '../constants/theme';
 
 export default function TextField({
   label,
@@ -80,16 +80,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   label: {
-    fontSize: fonts.sizes.body,
-    fontWeight: '600',
-    color: colors.text,
+    ...type.eyebrow,
+    fontSize: 11,
     marginBottom: spacing.sm,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
+    backgroundColor: colors.background,
+    borderWidth: 1.5,
     borderColor: colors.inputBorder,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
@@ -104,15 +103,14 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: fonts.sizes.subtitle,
-    color: colors.text,
+    ...type.bodyMedium,
+    fontSize: 16,
     // remove the default web outline so focus matches our own border styling
     outlineStyle: 'none',
   },
   errorText: {
+    ...type.caption,
     color: colors.danger,
-    fontSize: fonts.sizes.caption,
     marginTop: spacing.xs,
-    fontWeight: '500',
   },
 });

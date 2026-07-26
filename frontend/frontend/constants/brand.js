@@ -10,7 +10,7 @@
 export const brand = {
   name: 'Sabeel 114',
   shortName: 'Sabeel 114',
-  tagline: 'Islamic Learning',
+  tagline: 'Path to Qur’anic Excellence',
   portal: 'School Portal',
 
   // Contact

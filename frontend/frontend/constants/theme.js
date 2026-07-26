@@ -41,6 +41,17 @@ export const colors = {
   border: '#D5DEC5',
   inputBorder: '#C8D4B5',
   placeholder: '#8E9E78',
+
+  // Warm gilt accent — used sparingly for seals, ranks, and honors (echoes
+  // gold leaf on manuscript work, never a whole surface).
+  gold: '#C9A24B',
+  goldDark: '#8C6D2A',
+  goldBg: '#F6EED3',
+
+  // Kraft-paper card surface (auth backdrop cards, stamps) — warmer than the
+  // clinical pure-white `surface`.
+  kraft: '#EFE7D3',
+  kraftLine: 'rgba(37, 46, 24, 0.14)',
 };
 
 // Consistent spacing scale (multiples of 4).
@@ -76,16 +87,72 @@ export const shadow = Platform.select({
   },
 });
 
+// Two-voice type system sampled from the brand mark: Fraunces is a soft-serif
+// with real calligraphic character for anything that should feel like the
+// logo (headings, big numbers, quotes) — Karla is a warm, grounded sans for
+// everything you actually have to read (body copy, inputs, buttons). Neither
+// is a default "AI" font (no Inter/Roboto/Space Grotesk).
+export const fontFamilies = {
+  displayBlack: 'Fraunces_900Black',
+  displayBold: 'Fraunces_800ExtraBold',
+  displaySemibold: 'Fraunces_600SemiBold',
+  displayMedium: 'Fraunces_500Medium',
+  displayItalic: 'Fraunces_600SemiBold_Italic',
+  bodyRegular: 'Karla_400Regular',
+  bodyMedium: 'Karla_500Medium',
+  bodySemibold: 'Karla_600SemiBold',
+  bodyBold: 'Karla_700Bold',
+  bodyExtraBold: 'Karla_800ExtraBold',
+};
+
 export const fonts = {
-  // System fonts keep the bundle light and look native on each platform.
+  families: fontFamilies,
   sizes: {
     caption: 12,
     body: 14,
     subtitle: 16,
     title: 20,
     heading: 26,
-    display: 30,
+    display: 34,
+    jumbo: 46,
   },
 };
 
-export default { colors, spacing, radii, shadow, fonts };
+// Ready-made text styles — spread these instead of hand-rolling
+// fontFamily/fontSize/fontWeight combinations on every screen. Custom fonts
+// on native only ever render the exact weight that was loaded, so these
+// pick the right file rather than pairing fontFamily with fontWeight.
+export const type = {
+  jumbo: { fontFamily: fontFamilies.displayBlack, fontSize: fonts.sizes.jumbo, color: colors.text, letterSpacing: 0.2 },
+  display: { fontFamily: fontFamilies.displayBlack, fontSize: fonts.sizes.display, color: colors.text, letterSpacing: 0.2 },
+  heading: { fontFamily: fontFamilies.displayBold, fontSize: fonts.sizes.heading, color: colors.text },
+  title: { fontFamily: fontFamilies.displaySemibold, fontSize: fonts.sizes.title, color: colors.text },
+  quote: { fontFamily: fontFamilies.displayItalic, fontSize: fonts.sizes.title, color: colors.text },
+  subtitle: { fontFamily: fontFamilies.bodySemibold, fontSize: fonts.sizes.subtitle, color: colors.text },
+  body: { fontFamily: fontFamilies.bodyRegular, fontSize: fonts.sizes.body, color: colors.text },
+  bodyMedium: { fontFamily: fontFamilies.bodyMedium, fontSize: fonts.sizes.body, color: colors.text },
+  bodySemibold: { fontFamily: fontFamilies.bodySemibold, fontSize: fonts.sizes.body, color: colors.text },
+  bodyBold: { fontFamily: fontFamilies.bodyBold, fontSize: fonts.sizes.body, color: colors.text },
+  caption: { fontFamily: fontFamilies.bodyMedium, fontSize: fonts.sizes.caption, color: colors.textMuted },
+  eyebrow: {
+    fontFamily: fontFamilies.bodyExtraBold,
+    fontSize: 12,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  button: { fontFamily: fontFamilies.bodyBold, fontSize: fonts.sizes.subtitle, color: colors.textOnPrimary },
+};
+
+// Gradient recipes for <LinearGradient>, matched to the logo's olive-on-kraft
+// mood. "hero" is the deep-olive atmosphere behind auth/chrome surfaces,
+// "parchment" is a barely-there warm lift for light cards.
+export const gradients = {
+  hero: ['#212B18', '#3C4B28', '#5A6E3D'],
+  heroRadialHint: '#7A9850',
+  parchment: ['#FBFAF4', '#EFE9D8'],
+  sidebar: ['#1E2817', '#2A3820'],
+  gold: ['#C9A24B', '#8C6D2A'],
+};
+
+export default { colors, spacing, radii, shadow, fonts, fontFamilies, type, gradients };

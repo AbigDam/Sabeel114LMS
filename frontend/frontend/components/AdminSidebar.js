@@ -19,8 +19,9 @@ import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
+import AtmosphereBackground from './AtmosphereBackground';
 import { brand, brandImages } from '../constants/brand';
-import { colors, spacing, radii, fonts } from '../constants/theme';
+import { colors, spacing, radii, type } from '../constants/theme';
 
 const SIDEBAR_WIDTH = 290;
 
@@ -30,6 +31,7 @@ export default function Sidebar({ courses = [], activeId, onNavigate, onSignOut,
 
   return (
     <View style={styles.sidebar}>
+      <AtmosphereBackground variant="panel" />
       {/* Brand */}
       <View style={styles.brandRow}>
         <View style={styles.logoChip}>
@@ -47,6 +49,7 @@ export default function Sidebar({ courses = [], activeId, onNavigate, onSignOut,
         ) : null}
       </View>
 
+      <View style={styles.sectionRule} />
       <Text style={styles.sectionLabel}>General</Text>
 
       {/* Class rows: icon + name */}
@@ -150,6 +153,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sidebar,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.md,
+    overflow: 'hidden',
     // height:100% (not flex:1) gives full height in BOTH contexts — the desktop
     // row and the mobile drawer — without flexBasis:0 overriding `width`.
     height: '100%',
@@ -158,7 +162,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     paddingHorizontal: spacing.xs,
   },
   logoChip: {
@@ -171,15 +175,17 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   logo: { width: '100%', height: '100%' },
-  brandName: { color: '#FFFFFF', fontSize: fonts.sizes.subtitle, fontWeight: '800' },
-  brandSub: { color: colors.sidebarText, fontSize: fonts.sizes.caption, marginTop: 1 },
+  brandName: { ...type.title, fontSize: 17, color: '#FFFFFF' },
+  brandSub: { ...type.caption, color: colors.sidebarText, marginTop: 1 },
+  sectionRule: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginBottom: spacing.lg,
+  },
   sectionLabel: {
-    color: colors.sidebarText,
-    fontSize: fonts.sizes.body,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    opacity: 0.7,
+    ...type.eyebrow,
+    color: colors.gold,
+    opacity: 0.9,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.xs,
   },
@@ -204,10 +210,9 @@ const styles = StyleSheet.create({
   iconChipActive: { backgroundColor: colors.primary },
   itemLabel: {
     flex: 1,
+    ...type.bodySemibold,
     color: colors.sidebarText,
-    fontSize: fonts.sizes.body,
     lineHeight: 18,
-    fontWeight: '600',
   },
   itemLabelActive: { color: '#FFFFFF' },
   signOut: {
@@ -220,5 +225,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   signOutPressed: { opacity: 0.85 },
-  signOutText: { color: colors.textOnPrimary, fontSize: fonts.sizes.body, fontWeight: '700' },
+  signOutText: { ...type.bodyBold, color: colors.textOnPrimary },
 });

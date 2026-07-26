@@ -1,188 +1,235 @@
 // components/CourseCard.js
 // -----------------------------------------------------------------------------
-// A single course/class card shown on the Teacher Dashboard.
-// Displays the class title, student count, schedule, an "active" status badge,
-// and a "View Course Details" action.
+// Course/class card for the Teacher Dashboard, styled like a hand-filed
+// classroom dossier rather than a generic SaaS card: a manila folder tab
+// carries the program name, a wax-seal stamp (same motif as the admin bar)
+// carries the status, a colored "spine" identifies the class at a glance,
+// and the meta rows read like ledger lines with dotted leaders.
 //
 // Props:
-//   course         { title, students, schedule, status }
-//   onViewDetails  () => void   (Phase I: placeholder / console.log)
+//   course         { title, students, schedule, status, program, room }
+//   onViewDetails  () => void
 // -----------------------------------------------------------------------------
 
-// components/CourseCard.js
-// -----------------------------------------------------------------------------
-// Sabeel 114 Course Card Component — Olive Green & White Style (Wide Layout & Large Typography)
-// -----------------------------------------------------------------------------
+import { useRef } from 'react';
+import { View, Text, Pressable, Animated, Easing, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { colors, fontFamilies } from '../constants/theme';
 
-// High-visibility theme palette mirroring the Olive Green and White layout
-const BRONZE_COLORS = {
-  bronzeDeep: '#2A3820',    // deep forest olive
-  bronzeBright: '#4D5E35',  // main olive brand color
-  bronzeAccent: '#6B7A58',  // warm sage trim accent
-  surfaceWhite: '#FFFFFF',
-  textDark: '#111827',
-  textMuted: '#4B5563',
-  borderLight: '#E5E7EB',
-  successBg: '#E6EDDA',     // soft olive tint badge background
-  successText: '#3C4B28',   // dark olive badge text
-};
+// A small family of warm, brand-safe inks used to give each class its own
+// "spine color" — like books on a shelf — cycling deterministically off the
+// course title so the same class always lands on the same color.
+const SPINE_PALETTE = [colors.primary, colors.accent, colors.gold, colors.goldDark, '#8A4B32'];
+
+function spineColorFor(title = '') {
+  let sum = 0;
+  for (let i = 0; i < title.length; i += 1) sum += title.charCodeAt(i);
+  return SPINE_PALETTE[sum % SPINE_PALETTE.length];
+}
+
+function LedgerRow({ icon, label, value }) {
+  if (!value) return null;
+  return (
+    <View style={styles.ledgerRow}>
+      <Ionicons name={icon} size={15} color={colors.textMuted} style={styles.ledgerIcon} />
+      <Text style={styles.ledgerLabel}>{label}</Text>
+      <View style={styles.ledgerDots} />
+      <Text style={styles.ledgerValue} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
 
 export default function CourseCard({ course, onViewDetails, style }) {
   const isActive = course.status === 'active';
+  const spine = spineColorFor(course.title);
+  const initial = (course.title || '?').trim().charAt(0).toUpperCase();
+
+  const pressAnim = useRef(new Animated.Value(0)).current;
+
+  function animateTo(toValue) {
+    Animated.timing(pressAnim, {
+      toValue,
+      duration: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }
+
+  const btnScale = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] });
 
   return (
-    <View style={[styles.card, style]}>
-      
-      {/* Header Info Section */}
-      <View style={styles.headerRow}>
-        <View style={styles.iconBadge}>
-          <MaterialCommunityIcons name="book-open-variant" size={26} color={BRONZE_COLORS.bronzeDeep} />
-        </View>
-
-        <View style={styles.titleWrap}>
-          <Text style={styles.title} numberOfLines={2}>
-            {course.title}
-          </Text>
-          {course.program ? (
-            <Text style={styles.program} numberOfLines={1}>
-              {course.program}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Live / Status Pill */}
-        <View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeInactive]}>
-          <View style={[styles.dot, isActive ? styles.dotActive : styles.dotInactive]} />
-          <Text style={[styles.badgeText, isActive ? styles.badgeTextActive : styles.badgeTextInactive]}>
-            {course.status}
-          </Text>
-        </View>
-      </View>
-
-      {/* Meta rows (Enlarged icons & text for enhanced visibility) */}
-      <View style={styles.metaRow}>
-        <Ionicons name="people" size={20} color={BRONZE_COLORS.bronzeBright} />
-        <Text style={styles.metaText}>{course.students} Registered Students</Text>
-      </View>
-      
-      <View style={styles.metaRow}>
-        <Ionicons name="time" size={20} color={BRONZE_COLORS.textMuted} />
-        <Text style={styles.metaText}>{course.schedule}</Text>
-      </View>
-      
-      {course.room ? (
-        <View style={styles.metaRow}>
-          <Ionicons name="location" size={20} color={BRONZE_COLORS.textMuted} />
-          <Text style={styles.metaText}>Room Location: {course.room}</Text>
+    <View style={[styles.cardWrap, style]}>
+      {/* Manila folder tab — carries the program/track name */}
+      {course.program ? (
+        <View style={[styles.folderTab, { backgroundColor: spine }]}>
+          <Text style={styles.folderTabText} numberOfLines={1}>{course.program}</Text>
         </View>
       ) : null}
 
-      {/* Primary Call To Action Button — Spans wide, heavy UI button */}
-      <Pressable
-        style={({ pressed }) => [styles.detailsBtn, pressed && styles.detailsBtnPressed]}
-        onPress={onViewDetails}
+      {/* Wax-seal status stamp, matching the admin bar's seal motif */}
+      <View
+        style={[
+          styles.seal,
+          { borderColor: isActive ? colors.gold : colors.border },
+          { backgroundColor: isActive ? colors.goldBg : '#F3F4F0' },
+        ]}
       >
-        <Text style={styles.detailsBtnText}>Open Student Logs</Text>
-        <Ionicons name="arrow-forward-circle" size={22} color="#FFFFFF" />
-      </Pressable>
+        <View style={[styles.sealDot, { backgroundColor: isActive ? colors.success : '#9CA3AF' }]} />
+        <Text style={[styles.sealText, { color: isActive ? colors.goldDark : colors.textMuted }]}>
+          {isActive ? 'Active' : course.status}
+        </Text>
+      </View>
+
+      <View style={[styles.card, { borderLeftColor: spine }]}>
+        {/* Header: illuminated-manuscript-style drop cap + title */}
+        <View style={styles.headerRow}>
+          <Text style={[styles.dropCap, { color: spine }]}>{initial}</Text>
+          <Text style={styles.title} numberOfLines={2}>{course.title}</Text>
+        </View>
+
+        {/* Ledger lines */}
+        <View style={styles.ledger}>
+          <LedgerRow icon="people-outline" label="Students" value={`${course.students}`} />
+          <LedgerRow icon="time-outline" label="Schedule" value={course.schedule} />
+          {course.room ? <LedgerRow icon="location-outline" label="Room" value={course.room} /> : null}
+        </View>
+
+        {/* CTA */}
+        <Pressable
+          onPressIn={() => animateTo(1)}
+          onPressOut={() => animateTo(0)}
+          onPress={onViewDetails}
+        >
+          <Animated.View style={[styles.detailsBtn, { backgroundColor: spine, transform: [{ scale: btnScale }] }]}>
+            <Text style={styles.detailsBtnText}>OPEN STUDENT LOGS</Text>
+            <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+          </Animated.View>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: BRONZE_COLORS.surfaceWhite,
-    borderRadius: 14,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: BRONZE_COLORS.borderLight,
-    width: '100%', 
+  cardWrap: {
+    width: '100%',
+    paddingTop: 14,
   },
+  folderTab: {
+    position: 'absolute',
+    top: 0,
+    left: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    zIndex: 2,
+  },
+  folderTabText: {
+    fontFamily: fontFamilies.bodyExtraBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: '#FFFFFF',
+  },
+  seal: {
+    position: 'absolute',
+    top: 0,
+    right: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    zIndex: 2,
+  },
+  sealDot: { width: 7, height: 7, borderRadius: 3.5 },
+  sealText: {
+    fontFamily: fontFamilies.bodyExtraBold,
+    fontSize: 11.5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderLeftWidth: 7,
+    paddingTop: 26,
+    paddingHorizontal: 22,
+    paddingBottom: 22,
+  },
+
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  iconBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
-    backgroundColor: '#FEF3C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  titleWrap: { flex: 1, paddingRight: 8 },
-  title: {
-    fontSize: 22, 
-    fontWeight: '800',
-    color: BRONZE_COLORS.textDark,
-    lineHeight: 28,
-  },
-  program: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: BRONZE_COLORS.bronzeBright,
-    marginTop: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  badgeActive: { backgroundColor: BRONZE_COLORS.successBg },
-  badgeInactive: { backgroundColor: '#F3F4F6' },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dotActive: { backgroundColor: BRONZE_COLORS.successText },
-  dotInactive: { backgroundColor: '#9CA3AF' },
-  badgeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-  },
-  badgeTextActive: { color: BRONZE_COLORS.successText },
-  badgeTextInactive: { color: '#6B7280' },
-  
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 18,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  metaText: {
-    fontSize: 16, 
-    fontWeight: '500',
-    color: BRONZE_COLORS.textDark,
+  dropCap: {
+    fontFamily: fontFamilies.displayBlack,
+    fontSize: 42,
+    lineHeight: 42,
+    marginTop: -2,
   },
-  
+  title: {
+    flex: 1,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 20,
+    lineHeight: 25,
+    color: colors.text,
+    marginTop: 2,
+  },
+
+  ledger: { marginBottom: 20 },
+  ledgerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  ledgerIcon: { marginRight: 8 },
+  ledgerLabel: {
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: 12.5,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  ledgerDots: {
+    flex: 1,
+    marginHorizontal: 8,
+    borderBottomWidth: 1.5,
+    borderStyle: 'dotted',
+    borderColor: colors.inputBorder,
+    marginBottom: 3,
+  },
+  ledgerValue: {
+    fontFamily: fontFamilies.bodyExtraBold,
+    fontSize: 14.5,
+    color: colors.text,
+    maxWidth: '55%',
+  },
+
   detailsBtn: {
     flexDirection: 'row',
-    backgroundColor: BRONZE_COLORS.bronzeDeep,
-    height: 52, 
+    height: 50,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 18,
-    borderBottomWidth: 3,
-    borderBottomColor: BRONZE_COLORS.bronzeAccent, 
-  },
-  detailsBtnPressed: { 
-    backgroundColor: '#5C2509',
-    borderBottomWidth: 1,
+    gap: 9,
   },
   detailsBtnText: {
+    fontFamily: fontFamilies.bodyExtraBold,
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontSize: 14,
+    letterSpacing: 1,
   },
 });

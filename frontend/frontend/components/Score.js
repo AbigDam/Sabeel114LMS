@@ -1,3 +1,5 @@
+import { colors } from '../constants/theme';
+
 // respect and behavior are raw component scores from the backend.
 // attendance is 0 (present) or 1 (absent).
 export function computeScore({ respect = 0, behavior = 0, attendance = 1 }) {
@@ -15,10 +17,10 @@ export function isPresent(attendance) {
 // label instead of the raw number.
 export function scoreToCategory(score) {
   if (score >= 5) {
-    return { label: 'Excellent', color: '#15803D', bg: '#DCFCE7' };
+    return { label: 'Excellent', color: colors.success, bg: colors.successBg };
   }
   if (score >= 3) {
-    return { label: 'Good', color: '#92400E', bg: '#FEF3C7' };
+    return { label: 'Good', color: colors.goldDark, bg: colors.goldBg };
   }
-  return { label: 'Needs Improvement', color: '#B91C1C', bg: '#FEE2E2' };
+  return { label: 'Needs Improvement', color: colors.danger, bg: colors.dangerBg };
 }

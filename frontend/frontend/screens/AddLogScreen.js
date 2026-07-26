@@ -13,7 +13,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { AddLogForm } from '../components/AddLogForm';
 import { brand } from '../constants/brand';
-import { colors, fonts, radii, shadow, spacing } from '../constants/theme';
+import { colors, fonts, fontFamilies, radii, shadow, spacing } from '../constants/theme';
 import { apiCall } from '../api.js';
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ function DetailRow({ label, value, bold = false, valueColor }) {
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={[
         styles.detailValue,
-        bold && { fontWeight: '700' },
+        bold && { fontFamily: fontFamilies.bodyBold },
         valueColor && { color: valueColor },
       ]}>
         {value}
@@ -457,11 +457,12 @@ const styles = StyleSheet.create({
   backBtn:      { padding: spacing.xs },
   topBarCenter: { flex: 1 },
   topBarTitle: {
+    fontFamily: fontFamilies.displayBold,
     fontSize: fonts.sizes.subtitle,
-    fontWeight: '800',
     color: colors.text,
   },
   topBarSub: {
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: fonts.sizes.caption,
     color: colors.textMuted,
     marginTop: 1,
@@ -477,7 +478,7 @@ const styles = StyleSheet.create({
   },
   headerBadgeText: {
     color: colors.primaryDark,
-    fontWeight: '700',
+    fontFamily: fontFamilies.bodyBold,
     fontSize: fonts.sizes.caption,
   },
 
@@ -488,8 +489,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     marginTop: spacing.lg,
   },
-  h2:      { fontSize: fonts.sizes.title, fontWeight: '800', color: colors.text },
-  subtext: { fontSize: fonts.sizes.body,  color: colors.textMuted, marginTop: spacing.xs },
+  h2:      { fontFamily: fontFamilies.displayBold, fontSize: fonts.sizes.title, color: colors.text },
+  subtext: { fontFamily: fontFamilies.bodyRegular, fontSize: fonts.sizes.body,  color: colors.textMuted, marginTop: spacing.xs },
 
   inlineButtonRow: {
     flexDirection: 'row',
@@ -510,8 +511,8 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   inlineRowBtnText: {
+    fontFamily: fontFamilies.bodyBold,
     fontSize: fonts.sizes.caption,
-    fontWeight: '700',
     color: colors.textOnPrimary,
   },
 
@@ -534,8 +535,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   loggedBadgeText: {
+    fontFamily: fontFamilies.bodyBold,
     fontSize: fonts.sizes.caption,
-    fontWeight: '700',
     color: colors.success,
   },
 
@@ -549,8 +550,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   loggedBannerText: {
+    fontFamily: fontFamilies.bodySemibold,
     fontSize: fonts.sizes.body,
-    fontWeight: '600',
     color: colors.success,
   },
   detailCard: {
@@ -567,17 +568,17 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   detailLabel: {
+    fontFamily: fontFamilies.bodyExtraBold,
     fontSize: fonts.sizes.caption,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     color: colors.textMuted,
     marginBottom: spacing.xs,
   },
   detailValue: {
+    fontFamily: fontFamilies.bodyMedium,
     fontSize: fonts.sizes.subtitle,
     color: colors.text,
-    fontWeight: '500',
   },
   assignmentBox: {
     backgroundColor: colors.background,
@@ -586,6 +587,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   assignmentText: {
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: fonts.sizes.body,
     color: colors.text,
     lineHeight: 20,
@@ -601,8 +603,8 @@ const styles = StyleSheet.create({
   },
   viewHistoryBtnText: {
     color: colors.textOnPrimary,
+    fontFamily: fontFamilies.bodyBold,
     fontSize: fonts.sizes.body,
-    fontWeight: '700',
   },
   cancelAddBtn: {
     alignItems: 'center',
@@ -612,8 +614,8 @@ const styles = StyleSheet.create({
   },
   cancelAddBtnText: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.bodySemibold,
     fontSize: fonts.sizes.body,
-    fontWeight: '600',
   },
   deleteLogBtn: {
     padding: spacing.xs,
@@ -644,11 +646,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   modalTitle: {
+    fontFamily: fontFamilies.displayBold,
     fontSize: fonts.sizes.title,
-    fontWeight: '800',
     color: colors.text,
   },
   modalSub: {
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: fonts.sizes.body,
     color: colors.textMuted,
   },
@@ -656,6 +659,7 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   emptyHistoryText: {
+    fontFamily: fontFamilies.bodyRegular,
     textAlign: 'center',
     color: colors.textMuted,
     fontSize: fonts.sizes.body,
@@ -676,8 +680,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   historyDate: {
+    fontFamily: fontFamilies.bodyBold,
     fontSize: fonts.sizes.body,
-    fontWeight: '700',
     color: colors.text,
   },
   historyBadge: {
@@ -686,15 +690,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   historyBadgeText: {
+    fontFamily: fontFamilies.bodyBold,
     fontSize: fonts.sizes.caption,
-    fontWeight: '700',
   },
   historyCardBody: {
     marginTop: spacing.xs,
   },
   historyMainText: {
+    fontFamily: fontFamilies.bodySemibold,
     fontSize: fonts.sizes.body,
-    fontWeight: '600',
     color: colors.text,
   },
   historyNotesBox: {
@@ -706,6 +710,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   historyNotesText: {
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: fonts.sizes.caption,
     color: colors.text,
     lineHeight: 16,

@@ -15,17 +15,88 @@
 //   onSignOut    () => void              — returns to Login
 // -----------------------------------------------------------------------------
 
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, Image, Pressable, Animated, Easing, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
+import AtmosphereBackground from './AtmosphereBackground';
 import { brand, brandImages } from '../constants/brand';
-import { colors, spacing, radii, fonts } from '../constants/theme';
+import { colors, spacing, radii, type } from '../constants/theme';
 
 const SIDEBAR_WIDTH = 290;
+
+// One course row. Owns its own Animated.Values so the icon chip can crossfade
+// color/icon-tint on select (instead of snapping) and pop on tap.
+function SidebarItem({ course, active, onPress }) {
+  const activeProgress = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const pressScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.timing(activeProgress, {
+      toValue: active ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [active]);
+
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.timing(pressScale, {
+        toValue: 1.12,
+        duration: 90,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(pressScale, {
+        toValue: 1,
+        duration: 140,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+    onPress?.();
+  };
+
+  const chipBackground = activeProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.sidebarActive, colors.primary],
+  });
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={[styles.item, active && styles.itemActive]}
+      accessibilityRole="button"
+      accessibilityLabel={course.title}
+    >
+      <Animated.View
+        style={[styles.iconChip, { backgroundColor: chipBackground, transform: [{ scale: pressScale }] }]}
+      >
+        <MaterialCommunityIcons
+          name="book-education-outline"
+          size={20}
+          color={colors.sidebarText}
+          style={styles.iconLayer}
+        />
+        <Animated.View style={[styles.iconLayer, { opacity: activeProgress }]}>
+          <MaterialCommunityIcons name="book-education-outline" size={20} color={colors.textOnPrimary} />
+        </Animated.View>
+      </Animated.View>
+      <Text
+        style={[styles.itemLabel, active && styles.itemLabelActive]}
+        numberOfLines={2}
+      >
+        {course.title}
+      </Text>
+    </Pressable>
+  );
+}
 
 export default function Sidebar({ courses = [], activeId, onNavigate, onSignOut, onClose }) {
   return (
     <View style={styles.sidebar}>
+      <AtmosphereBackground variant="panel" />
       {/* Brand */}
       <View style={styles.brandRow}>
         <View style={styles.logoChip}>
@@ -37,36 +108,19 @@ export default function Sidebar({ courses = [], activeId, onNavigate, onSignOut,
         </View>
       </View>
 
+      <View style={styles.sectionRule} />
       <Text style={styles.sectionLabel}>Classes</Text>
 
       {/* Class rows: icon + name */}
       <View style={styles.list}>
-        {courses.map((course) => {
-          const active = course.id === activeId;
-          return (
-            <Pressable
-              key={course.id}
-              onPress={() => onNavigate?.(course)}
-              style={[styles.item, active && styles.itemActive]}
-              accessibilityRole="button"
-              accessibilityLabel={course.title}
-            >
-              <View style={[styles.iconChip, active && styles.iconChipActive]}>
-                <MaterialCommunityIcons
-                  name="book-education-outline"
-                  size={20}
-                  color={active ? colors.textOnPrimary : colors.sidebarText}
-                />
-              </View>
-              <Text
-                style={[styles.itemLabel, active && styles.itemLabelActive]}
-                numberOfLines={2}
-              >
-                {course.title}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {courses.map((course) => (
+          <SidebarItem
+            key={course.id}
+            course={course}
+            active={course.id === activeId}
+            onPress={() => onNavigate?.(course)}
+          />
+        ))}
       </View>
 
       {/* Spacer pushes Sign Out to the bottom */}
@@ -92,6 +146,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sidebar,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.md,
+    overflow: 'hidden',
     // height:100% (not flex:1) gives full height in BOTH contexts — the desktop
     // row and the mobile drawer — without flexBasis:0 overriding `width`.
     height: '100%',
@@ -100,7 +155,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     paddingHorizontal: spacing.xs,
   },
   logoChip: {
@@ -113,15 +168,17 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   logo: { width: '100%', height: '100%' },
-  brandName: { color: '#FFFFFF', fontSize: fonts.sizes.subtitle, fontWeight: '800' },
-  brandSub: { color: colors.sidebarText, fontSize: fonts.sizes.caption, marginTop: 1 },
+  brandName: { ...type.title, fontSize: 17, color: '#FFFFFF' },
+  brandSub: { ...type.caption, color: colors.sidebarText, marginTop: 1 },
+  sectionRule: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginBottom: spacing.lg,
+  },
   sectionLabel: {
-    color: colors.sidebarText,
-    fontSize: fonts.sizes.body,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    opacity: 0.7,
+    ...type.eyebrow,
+    color: colors.gold,
+    opacity: 0.9,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.xs,
   },
@@ -139,17 +196,19 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radii.sm,
-    backgroundColor: colors.sidebarActive,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconChipActive: { backgroundColor: colors.primary },
+  iconLayer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   itemLabel: {
     flex: 1,
+    ...type.bodySemibold,
     color: colors.sidebarText,
-    fontSize: fonts.sizes.body,
     lineHeight: 18,
-    fontWeight: '600',
   },
   itemLabelActive: { color: '#FFFFFF' },
   signOut: {
@@ -162,5 +221,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   signOutPressed: { opacity: 0.85 },
-  signOutText: { color: colors.textOnPrimary, fontSize: fonts.sizes.body, fontWeight: '700' },
+  signOutText: { ...type.bodyBold, color: colors.textOnPrimary },
 });

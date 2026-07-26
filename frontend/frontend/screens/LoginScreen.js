@@ -24,7 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AuthScene from '../components/AuthScene';
 import TextField from '../components/TextField';
 import { validatePassword } from '../constants/validation';
-import { colors, spacing, radii, fonts, shadow } from '../constants/theme';
+import { colors, spacing, radii, type, shadow } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import api from '../api.js'; 
 
@@ -189,14 +189,12 @@ async function handleLogin() {
 
 const styles = StyleSheet.create({
   welcome: {
-    fontSize: fonts.sizes.heading,
-    fontWeight: '800',
-    color: colors.text,
+    ...type.heading,
+    marginBottom: spacing.xs,
   },
   welcomeSub: {
-    fontSize: fonts.sizes.body,
+    ...type.body,
     color: colors.textMuted,
-    marginTop: spacing.xs,
     marginBottom: spacing.xl,
   },
   row: {
@@ -217,8 +215,8 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
-  checkboxLabel: { color: colors.text, fontSize: fonts.sizes.body },
-  link: { color: colors.primary, fontSize: fonts.sizes.body, fontWeight: '700' },
+  checkboxLabel: { ...type.bodyMedium, color: colors.text },
+  link: { ...type.bodyBold, color: colors.primary },
   primaryBtn: {
     flexDirection: 'row',
     backgroundColor: colors.primary,
@@ -230,7 +228,7 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   primaryBtnPressed: { backgroundColor: colors.primaryDark },
-  primaryBtnText: { color: colors.textOnPrimary, fontSize: fonts.sizes.subtitle, fontWeight: '700' },
+  primaryBtnText: { ...type.button },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl },
-  footerText: { color: colors.textMuted, fontSize: fonts.sizes.body },
+  footerText: { ...type.body, color: colors.textMuted },
 });

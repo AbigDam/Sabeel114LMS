@@ -12,7 +12,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { PASSWORD_RULES, getPasswordChecks, getPasswordStrength } from '../constants/validation';
-import { colors, spacing, radii, fonts } from '../constants/theme';
+import { colors, spacing, radii, type } from '../constants/theme';
 
 // Bar color by strength score (0..4).
 const STRENGTH_COLORS = [colors.danger, colors.danger, colors.warning, colors.accent, colors.success];
@@ -78,9 +78,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   strengthLabel: {
+    ...type.caption,
+    fontFamily: type.eyebrow.fontFamily,
     marginLeft: spacing.sm,
-    fontSize: fonts.sizes.caption,
-    fontWeight: '700',
     width: 64,
     textAlign: 'right',
   },
@@ -93,8 +93,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   checkText: {
-    fontSize: fonts.sizes.caption,
-    color: colors.textMuted,
+    ...type.caption,
   },
   checkTextOk: {
     color: colors.text,
