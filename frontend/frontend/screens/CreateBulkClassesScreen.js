@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,8 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
-import * as XLSX from 'xlsx';
+import * as FileSystem from 'expo-file-system/legacy';
 import api from '../api.js';
 
 const BRONZE_COLORS = {
@@ -31,13 +31,137 @@ const BRONZE_COLORS = {
   success: '#01885B',
 };
 
-const SPREADSHEET_MIME_TYPES = [
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel',
-  'text/csv',
-];
+const CSV_MIME_TYPES = ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/plain'];
 
 const ROLE_LABELS = { 0: 'Parent', 1: 'Teacher', 2: 'Student' };
+
+// Minimal CSV parser that handles quoted fields (commas/newlines inside quotes)
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  const s = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+
+    if (inQuotes) {
+      if (c === '"') {
+        if (s[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      row.push(field);
+      field = '';
+    } else if (c === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += c;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  if (rows.length === 0) return [];
+
+  const headers = rows[0].map((h) => h.trim());
+  return rows
+    .slice(1)
+    .filter((r) => r.some((cell) => cell.trim() !== ''))
+    .map((r) => {
+      const obj = {};
+      headers.forEach((h, idx) => {
+        obj[h] = r[idx] ?? '';
+      });
+      return obj;
+    });
+}
+
+async function checkExistingAccounts(parsedRows) {
+  try {
+    const response = await api.post('/check_existing_accounts/', { rows: parsedRows });
+    const results = response.data?.results || [];
+    return parsedRows.map((row, i) => ({
+      ...row,
+      teacher_exists: !!results[i]?.teacher_exists,
+      ta_exists: !!results[i]?.ta_exists,
+      student_exists: !!results[i]?.student_exists,
+      parent_exists: !!results[i]?.parent_exists,
+    }));
+  } catch (err) {
+    console.error('check_existing_accounts failed', err);
+    // Fail gracefully — preview still works, just without existence badges.
+    return parsedRows;
+  }
+}
+
+function ExistingBadge({ exists }) {
+  if (exists === undefined) return null;
+  return (
+    <View style={[styles.badge, exists ? styles.badgeExisting : styles.badgeNew]}>
+      <Text style={[styles.badgeLabel, exists ? styles.badgeLabelExisting : styles.badgeLabelNew]}>
+        {exists ? 'Existing account' : 'New account'}
+      </Text>
+    </View>
+  );
+}
+
+function EditIconButton({ onPress }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={8} style={styles.editIconButton}>
+      <Ionicons name="pencil" size={13} color={BRONZE_COLORS.bronzeAccent} />
+    </Pressable>
+  );
+}
+
+function EditForm({ values, onChange, onSave, onCancel, showEmail }) {
+  return (
+    <View style={styles.editForm}>
+      <TextInput
+        style={styles.editInput}
+        value={values.name}
+        onChangeText={(name) => onChange({ ...values, name })}
+        placeholder="Name"
+        placeholderTextColor={BRONZE_COLORS.textMuted}
+        autoFocus
+      />
+      {showEmail && (
+        <TextInput
+          style={styles.editInput}
+          value={values.email}
+          onChangeText={(email) => onChange({ ...values, email })}
+          placeholder="Email"
+          placeholderTextColor={BRONZE_COLORS.textMuted}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+      )}
+      <View style={styles.editFormActions}>
+        <Pressable onPress={onCancel} style={styles.editCancelButton}>
+          <Text style={styles.editCancelButtonText}>Cancel</Text>
+        </Pressable>
+        <Pressable onPress={onSave} style={styles.editSaveButton}>
+          <Text style={styles.editSaveButtonText}>Save</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
 function normalizeRow(raw) {
   const get = (key) => String(raw[key] ?? '').trim();
@@ -59,19 +183,22 @@ export default function CreateBulkClassesScreen({ navigation }) {
   const [parsing, setParsing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null); // response from the backend after submit
+  const [editing, setEditing] = useState(null); // { type: 'teacher'|'ta'|'student'|'parent', className?, rowIndex? }
+  const [editValues, setEditValues] = useState({});
+  const [checking, setChecking] = useState(false); // re-checking existence after an edit
 
   const groupedRows = useMemo(() => {
     if (!rows) return [];
     const groups = [];
     const indexByClass = new Map();
-    for (const row of rows) {
+    rows.forEach((row, originalIndex) => {
       const key = row.class_name || '(No class name)';
       if (!indexByClass.has(key)) {
         indexByClass.set(key, groups.length);
         groups.push({ className: key, rows: [] });
       }
-      groups[indexByClass.get(key)].rows.push(row);
-    }
+      groups[indexByClass.get(key)].rows.push({ row, originalIndex });
+    });
     return groups;
   }, [rows]);
 
@@ -79,25 +206,31 @@ export default function CreateBulkClassesScreen({ navigation }) {
     setParsing(true);
     try {
       const picked = await DocumentPicker.getDocumentAsync({
-        type: SPREADSHEET_MIME_TYPES,
+        type: CSV_MIME_TYPES,
         copyToCacheDirectory: true,
       });
       if (picked.canceled || !picked.assets?.length) return;
 
       const asset = picked.assets[0];
-      let workbook;
+      let text;
 
-      if (Platform.OS === 'web' && asset.base64) {
-        workbook = XLSX.read(asset.base64, { type: 'base64' });
+      if (Platform.OS === 'web') {
+        // On web, asset.uri is a blob: URL — fetch it and read as text.
+        const resp = await fetch(asset.uri);
+        text = await resp.text();
       } else {
-        const file = new File(asset.uri);
-        const buffer = await file.arrayBuffer();
-        workbook = XLSX.read(buffer, { type: 'array' });
+        // Legacy expo-file-system API — stable across SDK versions.
+        text = await FileSystem.readAsStringAsync(asset.uri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
       }
 
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (!text || !text.trim()) {
+        Alert.alert('Empty file', 'That file appears to be empty.');
+        return;
+      }
 
+      const rawRows = parseCSV(text);
       const parsedRows = rawRows
         .map(normalizeRow)
         .filter((row) => row.class_name || row.student_name);
@@ -105,16 +238,18 @@ export default function CreateBulkClassesScreen({ navigation }) {
       if (parsedRows.length === 0) {
         Alert.alert(
           'No rows found',
-          'That file didn’t contain any recognizable rows. Check the column headers match the template.'
+          'That file didn\u2019t contain any recognizable rows. Check the column headers match the template.'
         );
         return;
       }
 
+      const rowsWithExistence = await checkExistingAccounts(parsedRows);
+
       setFileName(asset.name);
-      setRows(parsedRows);
+      setRows(rowsWithExistence);
     } catch (err) {
       console.error(err);
-      Alert.alert('Could not read file', 'Please make sure this is a valid .xlsx or .csv file and try again.');
+      Alert.alert('Could not read file', `Please make sure this is a valid .csv file and try again.\n\n${err?.message || ''}`);
     } finally {
       setParsing(false);
     }
@@ -123,6 +258,79 @@ export default function CreateBulkClassesScreen({ navigation }) {
   function handleChooseDifferentFile() {
     setRows(null);
     setFileName(null);
+  }
+
+  function startEditTeacher(className, first) {
+    setEditing({ type: 'teacher', className });
+    setEditValues({ name: first.teacher_name || '', email: first.teacher_email || '' });
+  }
+
+  function startEditTA(className, first) {
+    setEditing({ type: 'ta', className });
+    setEditValues({ name: first.ta_name || '', email: first.ta_email || '' });
+  }
+
+  function startEditStudent(rowIndex, row) {
+    setEditing({ type: 'student', rowIndex });
+    setEditValues({ name: row.student_name || '' });
+  }
+
+  function startEditParent(rowIndex, row) {
+    setEditing({ type: 'parent', rowIndex });
+    setEditValues({ name: row.parent_name || '', email: row.parent_email || '' });
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setEditValues({});
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+
+    let updatedRows;
+    if (editing.type === 'teacher') {
+      // Teacher is shared across the whole class, so update every row in that class.
+      updatedRows = rows.map((r) =>
+        r.class_name === editing.className
+          ? { ...r, teacher_name: editValues.name.trim(), teacher_email: editValues.email.trim() }
+          : r
+      );
+    } else if (editing.type === 'ta') {
+      updatedRows = rows.map((r) =>
+        r.class_name === editing.className
+          ? { ...r, ta_name: editValues.name.trim(), ta_email: editValues.email.trim() }
+          : r
+      );
+    } else if (editing.type === 'student') {
+      updatedRows = rows.map((r, i) =>
+        i === editing.rowIndex ? { ...r, student_name: editValues.name.trim() } : r
+      );
+    } else if (editing.type === 'parent') {
+      updatedRows = rows.map((r, i) =>
+        i === editing.rowIndex
+          ? { ...r, parent_name: editValues.name.trim(), parent_email: editValues.email.trim() }
+          : r
+      );
+    } else {
+      updatedRows = rows;
+    }
+
+    setEditing(null);
+    setEditValues({});
+
+    // Re-check existence for everyone, since a corrected spelling can change whether
+    // a name/email now matches (or no longer matches) an existing account.
+    setChecking(true);
+    try {
+      const rechecked = await checkExistingAccounts(updatedRows);
+      setRows(rechecked);
+    } catch (err) {
+      console.error(err);
+      setRows(updatedRows); // keep the edit even if the recheck call fails
+    } finally {
+      setChecking(false);
+    }
   }
 
   async function handleSubmit() {
@@ -176,7 +384,7 @@ export default function CreateBulkClassesScreen({ navigation }) {
             <View style={styles.resultCard}>
               <Text style={styles.resultCardTitle}>New login credentials</Text>
               <Text style={styles.resultCardHint}>
-                These accounts didn’t exist before this upload — share these credentials with each person.
+                These accounts didn\u2019t exist before this upload — share these credentials with each person.
               </Text>
 
               {result.accounts_created.map((acct, i) => (
@@ -229,33 +437,145 @@ export default function CreateBulkClassesScreen({ navigation }) {
             </Text>
           </View>
 
-          {groupedRows.map((group) => (
-            <View key={group.className} style={styles.studentCard}>
-              <Text style={styles.studentCardHeading}>{group.className}</Text>
-              {group.rows.map((row, i) => (
-                <View key={i} style={styles.previewRow}>
-                  <Ionicons name="person-outline" size={16} color={BRONZE_COLORS.bronzeAccent} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.previewStudentName}>{row.student_name || '(no name)'}</Text>
-                    <Text style={styles.resultMeta}>
-                      Teacher: {row.teacher_name || '—'}
-                      {row.ta_name ? ` · TA: ${row.ta_name}` : ''}
-                      {row.parent_name ? ` · Parent: ${row.parent_name}` : ''}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+          {checking && (
+            <View style={styles.checkingBanner}>
+              <ActivityIndicator size="small" color={BRONZE_COLORS.bronzeAccent} />
+              <Text style={styles.checkingBannerText}>Re-checking accounts…</Text>
             </View>
-          ))}
+          )}
 
-          <Pressable style={styles.secondaryButton} onPress={handleChooseDifferentFile} disabled={submitting}>
+          {groupedRows.map((group) => {
+            const first = group.rows[0]?.row || {};
+            const isEditingTeacher = editing?.type === 'teacher' && editing.className === group.className;
+            const isEditingTA = editing?.type === 'ta' && editing.className === group.className;
+
+            return (
+              <View key={group.className} style={styles.studentCard}>
+                <Text style={styles.studentCardHeading}>{group.className}</Text>
+
+                <View style={styles.classStaffBlock}>
+                  {/* Teacher */}
+                  <View style={styles.classStaffRow}>
+                    <Ionicons name="school-outline" size={16} color={BRONZE_COLORS.bronzeAccent} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.classStaffLabel}>Teacher</Text>
+                      {isEditingTeacher ? (
+                        <EditForm
+                          values={editValues}
+                          onChange={setEditValues}
+                          onSave={saveEdit}
+                          onCancel={cancelEdit}
+                          showEmail
+                        />
+                      ) : (
+                        <>
+                          <View style={styles.previewNameRow}>
+                            <Text style={styles.classStaffName}>{first.teacher_name || '—'}</Text>
+                            <ExistingBadge exists={first.teacher_exists} />
+                            <EditIconButton onPress={() => startEditTeacher(group.className, first)} />
+                          </View>
+                          {!!first.teacher_email && (
+                            <Text style={styles.resultMeta}>{first.teacher_email}</Text>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* TA */}
+                  {(first.ta_name || first.ta_email || isEditingTA) && (
+                    <View style={styles.classStaffRow}>
+                      <Ionicons name="account-supervisor-outline" size={16} color={BRONZE_COLORS.bronzeAccent} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.classStaffLabel}>TA</Text>
+                        {isEditingTA ? (
+                          <EditForm
+                            values={editValues}
+                            onChange={setEditValues}
+                            onSave={saveEdit}
+                            onCancel={cancelEdit}
+                            showEmail
+                          />
+                        ) : (
+                          <>
+                            <View style={styles.previewNameRow}>
+                              <Text style={styles.classStaffName}>{first.ta_name || '—'}</Text>
+                              <ExistingBadge exists={first.ta_exists} />
+                              <EditIconButton onPress={() => startEditTA(group.className, first)} />
+                            </View>
+                            {!!first.ta_email && (
+                              <Text style={styles.resultMeta}>{first.ta_email}</Text>
+                            )}
+                          </>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                {group.rows.map(({ row, originalIndex }) => {
+                  const isEditingStudent = editing?.type === 'student' && editing.rowIndex === originalIndex;
+                  const isEditingParent = editing?.type === 'parent' && editing.rowIndex === originalIndex;
+
+                  return (
+                    <View key={originalIndex} style={styles.previewRow}>
+                      <Ionicons name="person-outline" size={16} color={BRONZE_COLORS.bronzeAccent} />
+                      <View style={{ flex: 1 }}>
+                        {isEditingStudent ? (
+                          <EditForm
+                            values={editValues}
+                            onChange={setEditValues}
+                            onSave={saveEdit}
+                            onCancel={cancelEdit}
+                          />
+                        ) : (
+                          <View style={styles.previewNameRow}>
+                            <Text style={styles.previewStudentName}>{row.student_name || '(no name)'}</Text>
+                            <ExistingBadge exists={row.student_exists} />
+                            <EditIconButton onPress={() => startEditStudent(originalIndex, row)} />
+                          </View>
+                        )}
+
+                        {isEditingParent ? (
+                          <View style={{ marginTop: 6 }}>
+                            <EditForm
+                              values={editValues}
+                              onChange={setEditValues}
+                              onSave={saveEdit}
+                              onCancel={cancelEdit}
+                              showEmail
+                            />
+                          </View>
+                        ) : (
+                          <View style={styles.previewNameRow}>
+                            <Text style={styles.resultMeta}>
+                              Parent: {row.parent_name || '—'}
+                              {row.parent_email ? ` · ${row.parent_email}` : ''}
+                            </Text>
+                            <ExistingBadge exists={row.parent_exists} />
+                            <EditIconButton onPress={() => startEditParent(originalIndex, row)} />
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={handleChooseDifferentFile}
+            disabled={submitting || checking}
+          >
             <Text style={styles.secondaryButtonText}>Choose a Different File</Text>
           </Pressable>
 
           <Pressable
-            style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
+            style={[styles.primaryButton, (submitting || checking) && styles.primaryButtonDisabled]}
             onPress={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || checking}
           >
             {submitting ? (
               <ActivityIndicator color={BRONZE_COLORS.surfaceWhite} />
@@ -283,7 +603,7 @@ export default function CreateBulkClassesScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.sectionTitleText}>Upload a class roster</Text>
           <Text style={[styles.fieldLabel, { marginTop: 8, marginBottom: 20 }]}>
-            Upload an .xlsx spreadsheet with one row per student, with columns: Class, Teacher Name, Teacher
+            Upload a .csv file with one row per student, with columns: Class, Teacher Name, Teacher
             Email, TA Name, TA Email, Student, Parent Email, Parent Name. Classes, teachers, TAs, students, and
             parents will be created (or reused, if they already exist) and linked together automatically.
           </Text>
@@ -298,7 +618,7 @@ export default function CreateBulkClassesScreen({ navigation }) {
             ) : (
               <View style={styles.uploadButtonContent}>
                 <Ionicons name="cloud-upload-outline" size={20} color={BRONZE_COLORS.surfaceWhite} />
-                <Text style={styles.primaryButtonText}>Choose Excel File</Text>
+                <Text style={styles.primaryButtonText}>Choose CSV File</Text>
               </View>
             )}
           </Pressable>
@@ -357,6 +677,101 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   studentCardHeading: { fontSize: 15, fontWeight: '700', color: BRONZE_COLORS.bronzeAccent, marginBottom: 12 },
+
+  classStaffBlock: {
+    backgroundColor: BRONZE_COLORS.badgeBg,
+    borderRadius: 10,
+    padding: 14,
+    gap: 10,
+    marginBottom: 14,
+  },
+  classStaffRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  classStaffLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRONZE_COLORS.badgeText,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  classStaffName: { fontSize: 14, fontWeight: '700', color: BRONZE_COLORS.textDark, marginTop: 1 },
+
+  previewNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 2,
+  },
+
+  badge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+  },
+  badgeExisting: {
+    backgroundColor: '#FCEFC7',
+    borderColor: '#E8B93A',
+  },
+  badgeNew: {
+    backgroundColor: '#DCF3E8',
+    borderColor: BRONZE_COLORS.success,
+  },
+  badgeLabel: { fontSize: 11, fontWeight: '700' },
+  badgeLabelExisting: { color: '#7A5B06' },
+  badgeLabelNew: { color: BRONZE_COLORS.success },
+
+  editIconButton: {
+    padding: 4,
+    borderRadius: 6,
+  },
+
+  editForm: {
+    marginTop: 4,
+    marginBottom: 4,
+    gap: 8,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: BRONZE_COLORS.bronzeBright,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: BRONZE_COLORS.textDark,
+    backgroundColor: BRONZE_COLORS.surfaceWhite,
+  },
+  editFormActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  editCancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BRONZE_COLORS.borderLight,
+  },
+  editCancelButtonText: { fontSize: 13, fontWeight: '700', color: BRONZE_COLORS.textMuted },
+  editSaveButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: BRONZE_COLORS.bronzeBright,
+  },
+  editSaveButtonText: { fontSize: 13, fontWeight: '700', color: BRONZE_COLORS.surfaceWhite },
+
+  checkingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: BRONZE_COLORS.badgeBg,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  checkingBannerText: { fontSize: 13, fontWeight: '700', color: BRONZE_COLORS.badgeText },
 
   previewRow: {
     flexDirection: 'row',
