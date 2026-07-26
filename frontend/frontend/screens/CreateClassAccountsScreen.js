@@ -30,6 +30,17 @@ const BRONZE_COLORS = {
 
 const emptyStudent = () => ({ first_name: '', last_name: '', email: '', parent_ids: [] });
 
+function ExistingBadge({ exists }) {
+  if (exists === undefined) return null;
+  return (
+    <View style={[styles.badge, exists ? styles.badgeExisting : styles.badgeNew]}>
+      <Text style={[styles.badgeLabel, exists ? styles.badgeLabelExisting : styles.badgeLabelNew]}>
+        {exists ? 'Existing account' : 'New account'}
+      </Text>
+    </View>
+  );
+}
+
 export default function CreateClassAccountsScreen({ navigation }) {
   // --- Class fields ---
   const [className, setClassName] = useState('');
@@ -39,6 +50,11 @@ export default function CreateClassAccountsScreen({ navigation }) {
   const [parents, setParents] = useState([]);
   // --- Student rows ---
   const [students, setStudents] = useState([emptyStudent()]);
+
+  // --- Existence-check state (students only — teachers/parents are picked from
+  // existing records via dropdown, so they always already exist) ---
+  const [studentExistence, setStudentExistence] = useState([undefined]);
+  const [checkingExistence, setCheckingExistence] = useState(false);
 
   // --- UI state ---
   const [submitting, setSubmitting] = useState(false);
@@ -68,6 +84,45 @@ export default function CreateClassAccountsScreen({ navigation }) {
     loadParents();
   }, []);
 
+  // Debounced existence check: re-runs 600ms after the student name list settles
+  // (typing a letter, adding/removing a row, or changing the class name).
+  useEffect(() => {
+    const hasAnyName = students.some((s) => s.first_name.trim() || s.last_name.trim());
+    if (!hasAnyName) {
+      setStudentExistence(students.map(() => undefined));
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      checkStudentsExistence();
+    }, 600);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students.map((s) => `${s.first_name.trim()}|${s.last_name.trim()}`).join(','), className]);
+
+  async function checkStudentsExistence() {
+    setCheckingExistence(true);
+    try {
+      const rows = students.map((s) => ({
+        class_name: className.trim(),
+        teacher_email: '',
+        ta_email: '',
+        student_name: `${s.first_name.trim()} ${s.last_name.trim()}`.trim(),
+        parent_name: '',
+        parent_email: '',
+      }));
+      const response = await api.post('/check_existing_accounts/', { rows });
+      const results = response.data?.results || [];
+      setStudentExistence(students.map((_, i) => results[i]?.student_exists));
+    } catch (err) {
+      console.error(err);
+      setStudentExistence(students.map(() => undefined));
+    } finally {
+      setCheckingExistence(false);
+    }
+  }
+
   function updateStudent(index, field, value) {
     setStudents((prev) => {
       const next = [...prev];
@@ -78,6 +133,7 @@ export default function CreateClassAccountsScreen({ navigation }) {
 
   function addStudentRow() {
     setStudents((prev) => [...prev, emptyStudent()]);
+    setStudentExistence((prev) => [...prev, undefined]);
   }
 
   function removeStudentRow(index) {
@@ -85,6 +141,7 @@ export default function CreateClassAccountsScreen({ navigation }) {
       if (prev.length === 1) return prev; // always keep at least 1 row
       return prev.filter((_, i) => i !== index);
     });
+    setStudentExistence((prev) => prev.filter((_, i) => i !== index));
   }
 
   function addParentToStudent(studentIndex, parentId) {
@@ -325,6 +382,12 @@ export default function CreateClassAccountsScreen({ navigation }) {
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionTitleIndicator} />
           <Text style={styles.sectionTitleText}>Students</Text>
+          {checkingExistence && (
+            <View style={styles.checkingInline}>
+              <ActivityIndicator size="small" color={BRONZE_COLORS.bronzeAccent} />
+              <Text style={styles.checkingInlineText}>Checking accounts…</Text>
+            </View>
+          )}
         </View>
 
         {students.map((student, index) => {
@@ -335,7 +398,10 @@ export default function CreateClassAccountsScreen({ navigation }) {
           return (
             <View key={index} style={styles.studentCard}>
               <View style={styles.studentCardHeader}>
-                <Text style={styles.studentCardHeading}>Student {index + 1}</Text>
+                <View style={styles.studentHeadingRow}>
+                  <Text style={styles.studentCardHeading}>Student {index + 1}</Text>
+                  <ExistingBadge exists={studentExistence[index]} />
+                </View>
                 {students.length > 1 && (
                   <Pressable onPress={() => removeStudentRow(index)} hitSlop={10}>
                     <Ionicons name="trash-outline" size={20} color={BRONZE_COLORS.danger} />
@@ -523,6 +589,9 @@ const styles = StyleSheet.create({
   sectionTitleIndicator: { width: 6, height: 22, backgroundColor: BRONZE_COLORS.bronzeBright, borderRadius: 3 },
   sectionTitleText: { fontSize: 18, fontWeight: '700', color: BRONZE_COLORS.textDark },
 
+  checkingInline: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 4 },
+  checkingInlineText: { fontSize: 12, fontWeight: '600', color: BRONZE_COLORS.textMuted },
+
   card: {
     backgroundColor: BRONZE_COLORS.surfaceWhite,
     borderRadius: 14,
@@ -555,7 +624,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  studentHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   studentCardHeading: { fontSize: 15, fontWeight: '700', color: BRONZE_COLORS.bronzeAccent },
+
+  badge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+  },
+  badgeExisting: {
+    backgroundColor: '#FCEFC7',
+    borderColor: '#E8B93A',
+  },
+  badgeNew: {
+    backgroundColor: '#DCF3E8',
+    borderColor: BRONZE_COLORS.success,
+  },
+  badgeLabel: { fontSize: 11, fontWeight: '700' },
+  badgeLabelExisting: { color: '#7A5B06' },
+  badgeLabelNew: { color: BRONZE_COLORS.success },
 
   row2: { flexDirection: 'row', gap: 16 },
   row2Item: { flex: 1 },

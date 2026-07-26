@@ -14,6 +14,8 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
+from django.http import JsonResponse
+
 User = get_user_model()
 
 import os
@@ -516,6 +518,50 @@ def _create_student_account(full_name, created_accounts):
     })
     return user
 
+class CheckExistingAccounts(APIView):
+
+    def post(self, request):
+        rows = self.request.data.get("rows", [])
+        results = []
+
+        for row in rows:
+            teacher_email = (row.get("teacher_email") or "").strip()
+            ta_email = (row.get("ta_email") or "").strip()
+            parent_email = (row.get("parent_email") or "").strip()
+            student_name = (row.get("student_name") or "").strip()
+
+            teacher_exists = (
+                User.objects.filter(email=teacher_email).exists()
+                if teacher_email else False
+            )
+            ta_exists = (
+                User.objects.filter(email=ta_email).exists()
+                if ta_email else False
+            )
+            parent_exists = (
+                User.objects.filter(email=parent_email).exists()
+                if parent_email else False
+            )
+
+            if student_name:
+                name_parts = student_name.split(" ", 1)
+                student_first_name = name_parts[0]
+                student_last_name = name_parts[1] if len(name_parts) > 1 else ""
+                student_exists = User.objects.filter(
+                    first_name=student_first_name, last_name=student_last_name
+                ).exists()
+            else:
+                student_exists = False
+
+                
+            results.append({
+                "teacher_exists": teacher_exists,
+                "ta_exists": ta_exists,
+                "student_exists": student_exists,
+                "parent_exists": parent_exists,
+            })
+
+        return JsonResponse({"results": results})
 
 class BulkCreateClasses(APIView):
     """Accepts a flat list of parsed spreadsheet rows (one per student) and

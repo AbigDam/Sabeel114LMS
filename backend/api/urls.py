@@ -24,6 +24,7 @@ urlpatterns = [
     path("teachers/", TeacherListView.as_view(), name='teachers'),
     path("parents/", ParentListView.as_view(), name='parents'),
     path("notifications/", UpdateNotificationsView.as_view(), name='notifications'),
+    path("check_existing_accounts/", CheckExistingAccounts.as_view(), name='exsistingaccounts'),
 
     path("male_list/", MaleListView.as_view(), name='male_list'),
     path("female_list/", FemaleListView.as_view(), name='female_list'),
