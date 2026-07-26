@@ -154,8 +154,8 @@ function AdminBar({ navigation }) {
           style={({ pressed }) => [styles.adminBarLink, pressed && styles.adminBarLinkPressed]}
           onPress={() => navigation.navigate('CreateBulkClasses')}
         >
-          <Ionicons name="add-circle-outline" size={17} color={ADMIN_COLORS.text} />
-          <Text style={styles.adminBarLinkText}>Create Bulk Classes</Text>
+          <Ionicons name="cloud-upload-outline" size={17} color={ADMIN_COLORS.text} />
+          <Text style={styles.adminBarLinkText}>Bulk Load Classes</Text>
         </Pressable>
 
         <Pressable

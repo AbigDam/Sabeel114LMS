@@ -17,6 +17,8 @@ from django.conf import settings
 User = get_user_model()
 
 import os
+import secrets
+from django.db import transaction
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 
@@ -443,3 +445,132 @@ class CreateClassAccounts(APIView):
         classroom.save()
 
         return Response(results, status=status.HTTP_201_CREATED)
+
+
+def _generate_unique_username(first_name, last_name):
+    base = f"{first_name}{last_name}".replace(" ", "") or "user"
+    username = base
+    suffix = 1
+    while User.objects.filter(username=username).exists():
+        suffix += 1
+        username = f"{base}{suffix}"
+    return username
+
+
+def _find_or_create_account(email, full_name, role, created_accounts):
+    """Find an existing User by email, or create one (role=0 Parent / role=1 Teacher).
+    Returns None if no email was supplied (e.g. an optional TA row)."""
+    email = (email or "").strip()
+    if not email:
+        return None
+
+    existing = User.objects.filter(email=email).first()
+    if existing:
+        return existing
+
+    name_parts = (full_name or "").strip().split()
+    first_name = name_parts[0] if name_parts else email.split("@")[0]
+    last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+    username = _generate_unique_username(first_name, last_name)
+    password = secrets.token_urlsafe(9)
+
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        role=role,
+        password=password,
+    )
+    user.temporary_passwords = password
+    user.save()
+
+    created_accounts.append({
+        "username": username, "email": email, "role": role, "temporary_password": password,
+    })
+    return user
+
+
+def _create_student_account(full_name, created_accounts):
+    """Students have no email column in the sheet, so they're always created fresh (no dedup)."""
+    name_parts = (full_name or "").strip().split()
+    first_name = name_parts[0] if name_parts else "Student"
+    last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+    username = _generate_unique_username(first_name, last_name)
+    password = secrets.token_urlsafe(9)
+
+    user = User.objects.create_user(
+        username=username,
+        first_name=first_name,
+        last_name=last_name,
+        role=2,
+        password=password,
+    )
+    user.temporary_passwords = password
+    user.save()
+
+    created_accounts.append({
+        "username": username, "email": "", "role": 2, "temporary_password": password,
+    })
+    return user
+
+
+class BulkCreateClasses(APIView):
+    """Accepts a flat list of parsed spreadsheet rows (one per student) and
+    creates/reuses classes, teachers, TAs, parents, and students, linking them
+    all together in one pass."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        rows = self.request.data.get("rows") or []
+
+        created_accounts = []
+        classes_created = 0
+        classes_reused = 0
+        classroom_cache = {}
+
+        with transaction.atomic():
+            for row in rows:
+                class_name = (row.get("class_name") or "").strip()
+                if not class_name:
+                    continue
+
+                cache_key = class_name.lower()
+                classroom = classroom_cache.get(cache_key)
+                if classroom is None:
+                    classroom = Classroom.objects.filter(class_name__iexact=class_name).first()
+                    if classroom is None:
+                        classroom = Classroom.objects.create(
+                            class_name=class_name, teachers=[], students=[], status=True,
+                        )
+                        classes_created += 1
+                    else:
+                        classes_reused += 1
+                    classroom_cache[cache_key] = classroom
+
+                teacher = _find_or_create_account(row.get("teacher_email"), row.get("teacher_name"), 1, created_accounts)
+                ta = _find_or_create_account(row.get("ta_email"), row.get("ta_name"), 1, created_accounts)
+                parent = _find_or_create_account(row.get("parent_email"), row.get("parent_name"), 0, created_accounts)
+                student = _create_student_account(row.get("student_name"), created_accounts)
+
+                classroom.teachers = classroom.teachers or []
+                for teacher_user in (teacher, ta):
+                    if teacher_user and teacher_user.id not in classroom.teachers:
+                        classroom.teachers.append(teacher_user.id)
+
+                classroom.students = classroom.students or []
+                if student.id not in classroom.students:
+                    classroom.students.append(student.id)
+                classroom.save()
+
+                if parent:
+                    student.parents = list(set((student.parents or []) + [parent.id]))
+                    student.save()
+
+        return Response({
+            "classes_created": classes_created,
+            "classes_reused": classes_reused,
+            "accounts_created": created_accounts,
+        }, status=status.HTTP_201_CREATED)

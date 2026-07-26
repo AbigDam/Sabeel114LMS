@@ -10,6 +10,7 @@ class User(AbstractUser):
     gender = models.BooleanField(null=True, blank=True) #True - Male, False - Female
     score = models.IntegerField(default=0, null=True, blank=True)
     email_notifications = models.BooleanField(default=False)
+    temporary_passwords=models.CharField(max_length=255, blank=True, null=True) #Plaintext password set at bulk-creation time, for admin display only
 
 class Notification(models.Model):
     notification_id = models.BigAutoField(primary_key=True)

@@ -13,6 +13,7 @@ urlpatterns = [
 
     path("create_class/", CreateClassView.as_view(), name="create_class"),
     path("create_class_accounts/", CreateClassAccounts.as_view(), name="create_class_accounts"),
+    path("bulk_create_classes/", BulkCreateClasses.as_view(), name="bulk_create_classes"),
     path("select_classes/", FilterClasses.as_view(), name="filter_class"),
     path("current_user/", CurrentUser.as_view(), name="current_user"),
     path("announcements/", AnnouncementListView.as_view(), name="announcements"),
