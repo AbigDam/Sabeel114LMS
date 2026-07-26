@@ -140,6 +140,7 @@ function AdminBar({ navigation }) {
           <Ionicons name="trophy-outline" size={17} color={ADMIN_COLORS.text} />
           <Text style={styles.adminBarLinkText}>Private Leaderboard</Text>
         </Pressable>
+
         <Pressable
           style={({ pressed }) => [styles.adminBarLink, pressed && styles.adminBarLinkPressed]}
           onPress={() => navigation.navigate('CreateClassAccounts')}
@@ -147,6 +148,16 @@ function AdminBar({ navigation }) {
           <Ionicons name="add-circle-outline" size={17} color={ADMIN_COLORS.text} />
           <Text style={styles.adminBarLinkText}>Create Class</Text>
         </Pressable>
+
+
+        <Pressable
+          style={({ pressed }) => [styles.adminBarLink, pressed && styles.adminBarLinkPressed]}
+          onPress={() => navigation.navigate('CreateBulkClasses')}
+        >
+          <Ionicons name="add-circle-outline" size={17} color={ADMIN_COLORS.text} />
+          <Text style={styles.adminBarLinkText}>Create Bulk Classes</Text>
+        </Pressable>
+
         <Pressable
           style={({ pressed }) => [styles.adminBarLinkPrimary, pressed && styles.adminBarLinkPrimaryPressed]}
           onPress={() => navigation.navigate('Leaderboard')}
@@ -154,6 +165,7 @@ function AdminBar({ navigation }) {
           <Ionicons name="globe-outline" size={17} color={colors.sidebar} />
           <Text style={styles.adminBarLinkPrimaryText}>View Public Leaderboard</Text>
         </Pressable>
+      
       </View>
     </LinearGradient>
   );

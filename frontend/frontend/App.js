@@ -31,6 +31,7 @@ import LoadingScreen from './screens/LoadingScreen';
 import AddLogScreen from './screens/AddLogScreen';
 import StudentViewScreen from './screens/StudentViewScreen';
 import CreateClassAccountsScreen from './screens/CreateClassAccountsScreen.js';
+import CreateBulkClasses from './screens/CreateBulkClassesScreen.js';
 import LeaderboardScreen from './screens/LeaderboardScreen.js';
 import PrivateLeaderboardScreen from './screens/PrivateLeaderboardScreen.js';
 
@@ -207,6 +208,7 @@ export default function App() {
                   <>
                     <Stack.Screen name="Dashboard" component={DashboardScreen} />
                     <Stack.Screen name="AddLog" component={AddLogScreen} />
+                    <Stack.Screen name="CreateBulkClasses" component={CreateBulkClasses} />
                     <Stack.Screen name="StudentRoster" component={StudentViewScreen} />
                     <Stack.Screen name="CreateClassAccounts" component={CreateClassAccountsScreen} />
                     <Stack.Screen name="PrivateLeaderboard" component={PrivateLeaderboardScreen} />

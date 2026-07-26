@@ -50,9 +50,9 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     "Sabeel LMS"
 )
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ["sabeel114lms.onrender.com", "localhost"]
+ALLOWED_HOSTS = ["sabeel114lms.onrender.com", "localhost", "127.0.0.1"]
 
 CORS_ALLOW_ALL_ORIGINS = True
 # Application definition
@@ -140,6 +140,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
 '''
 
 # Password validation
