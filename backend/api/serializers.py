@@ -1,4 +1,6 @@
 import datetime
+from django.db.models.functions import Concat
+from multiprocessing import Value
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import *
@@ -53,6 +55,37 @@ class ParentSerializer(serializers.ModelSerializer):
             "last_name",
         ]
 
+class UserSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    children = serializers.SerializerMethodField()
+    classes_student = serializers.SerializerMethodField()
+    classes_teacher = serializers.SerializerMethodField()
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "role",
+            "children",
+            "classes_student",
+            "classes_teacher",
+            "gender",
+        ]
+
+    def get_children(self, obj):
+        children = User.objects.filter(parents__contains=[obj.id], is_active=True)
+        return [f"{c.first_name} {c.last_name}".strip() for c in children]
+
+    def get_classes_student(self, obj):
+        classes = Classroom.objects.filter(students__contains=[obj.id], status=True)
+        return [c.class_name for c in classes]
+
+    def get_classes_teacher(self, obj):
+        classes = Classroom.objects.filter(teachers__contains=[obj.id], status=True)
+        return [c.class_name for c in classes]
 
 class CreateClassSerializer(serializers.Serializer):
     class_name = serializers.CharField()

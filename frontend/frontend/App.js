@@ -34,6 +34,7 @@ import CreateClassAccountsScreen from './screens/CreateClassAccountsScreen.js';
 import CreateBulkClasses from './screens/CreateBulkClassesScreen.js';
 import LeaderboardScreen from './screens/LeaderboardScreen.js';
 import PrivateLeaderboardScreen from './screens/PrivateLeaderboardScreen.js';
+import ManageUserScreen from './screens/ManageUserScreen.js';
 
 import { AuthContext } from './context/AuthContext';
 import { colors, spacing, fonts, radii } from './constants/theme';
@@ -212,6 +213,7 @@ export default function App() {
                     <Stack.Screen name="StudentRoster" component={StudentViewScreen} />
                     <Stack.Screen name="CreateClassAccounts" component={CreateClassAccountsScreen} />
                     <Stack.Screen name="PrivateLeaderboard" component={PrivateLeaderboardScreen} />
+                    <Stack.Screen name="ManageUsers" component={ManageUserScreen} />
                   </>
                 ) : (
                   // Parent or Student — just the dashboard, which renders

@@ -620,3 +620,11 @@ class BulkCreateClasses(APIView):
             "classes_reused": classes_reused,
             "accounts_created": created_accounts,
         }, status=status.HTTP_201_CREATED)
+
+class UserDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)

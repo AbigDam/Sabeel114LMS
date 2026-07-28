@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   backBtnPlaceholder: { width: 32 },
   topBarCenter: { flex: 1, alignItems: 'center' },
   topBarTitle: {
-    fontSize: fonts.sizes.subtitle,
+    fontSize: fonts.sizes.title,
     fontWeight: '800',
     color: colors.text,
   },

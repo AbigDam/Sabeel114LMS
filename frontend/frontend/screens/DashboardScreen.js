@@ -159,6 +159,14 @@ function AdminBar({ navigation }) {
         </Pressable>
 
         <Pressable
+          style={({ pressed }) => [styles.adminBarLink, pressed && styles.adminBarLinkPressed]}
+          onPress={() => navigation.navigate('ManageUsers')}
+        >
+          <Ionicons name="people-outline" size={17} color={ADMIN_COLORS.text} />
+          <Text style={styles.adminBarLinkText}>Manage Users</Text>
+        </Pressable>
+
+        <Pressable
           style={({ pressed }) => [styles.adminBarLinkPrimary, pressed && styles.adminBarLinkPrimaryPressed]}
           onPress={() => navigation.navigate('Leaderboard')}
         >
