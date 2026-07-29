@@ -129,7 +129,7 @@ function AdminBar({ navigation }) {
         </View>
         <View>
           <Text style={styles.adminBarTitle}>Admin Only</Text>
-          <Text style={styles.adminBarSubtitle}>Superuser tools for the whole school</Text>
+          <Text style={styles.adminBarSubtitle}>Administrative tools for the whole school</Text>
         </View>
       </View>
       <View style={styles.adminBarLinks}>
@@ -147,6 +147,14 @@ function AdminBar({ navigation }) {
         >
           <Ionicons name="add-circle-outline" size={17} color={ADMIN_COLORS.text} />
           <Text style={styles.adminBarLinkText}>Create Class</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.adminBarLink, pressed && styles.adminBarLinkPressed]}
+          onPress={() => navigation.navigate('UserList')}
+        >
+          <Ionicons name="people-circle-outline" size={17} color={ADMIN_COLORS.text} />
+          <Text style={styles.adminBarLinkText}>User List</Text>
         </Pressable>
 
 
@@ -201,7 +209,7 @@ function TeacherDashboardBody({
           <Text style={styles.hubGreeting}>Teacher {teacher?.username}</Text>
           <View style={styles.welcomeRule} />
           <Text style={styles.hubSubGreeting}>
-            Sabeel 114 Teacher Portal Dashboard — Manage your active classes and student logs.
+            Sabeel 114 Teacher Portal Dashboard {"\n"}Manage your active classes and student logs.
           </Text>
         </View>
       </Reveal>

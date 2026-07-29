@@ -34,6 +34,12 @@ import CreateClassAccountsScreen from './screens/CreateClassAccountsScreen.js';
 import CreateBulkClasses from './screens/CreateBulkClassesScreen.js';
 import LeaderboardScreen from './screens/LeaderboardScreen.js';
 import PrivateLeaderboardScreen from './screens/PrivateLeaderboardScreen.js';
+import AddStudentToClassScreen from './screens/AddStudentToClassScreen.js';
+import AddTeacherToClassScreen from './screens/AddTeacherToClassScreen.js';
+import UserListScreen from './screens/UserListScreen.js';
+import UserDetailScreen from './screens/UserDetailScreen.js';
+import AddParentToStudentScreen from './screens/AddParentToStudentScreen.js';
+import AddChildToParentScreen from './screens/AddChildToParentScreen.js';
 
 import { AuthContext } from './context/AuthContext';
 import { colors, spacing, fonts, radii } from './constants/theme';
@@ -212,6 +218,13 @@ export default function App() {
                     <Stack.Screen name="StudentRoster" component={StudentViewScreen} />
                     <Stack.Screen name="CreateClassAccounts" component={CreateClassAccountsScreen} />
                     <Stack.Screen name="PrivateLeaderboard" component={PrivateLeaderboardScreen} />
+                    <Stack.Screen name="AddStudentToClass" component={AddStudentToClassScreen} />
+                    <Stack.Screen name="AddTeacherToClass" component={AddTeacherToClassScreen} />
+                    <Stack.Screen name="UserList" component={UserListScreen} />
+                    <Stack.Screen name="UserDetail" component={UserDetailScreen} />
+                    <Stack.Screen name="AddParentToStudent" component={AddParentToStudentScreen} />
+                    <Stack.Screen name="AddChildToParent" component={AddChildToParentScreen} />
+
                   </>
                 ) : (
                   // Parent or Student — just the dashboard, which renders

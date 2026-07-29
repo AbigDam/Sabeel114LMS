@@ -188,6 +188,16 @@ class ParentListView(APIView):
         serializer = ParentSerializer(parents, many=True)
         return Response(serializer.data)
 
+
+class StudentListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        students = User.objects.filter(role=2).order_by("last_name", "first_name")
+
+        serializer = StudentSerializer(students, many=True)
+        return Response(serializer.data)
+
 class TeacherListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -259,8 +269,38 @@ class AnnouncementListView(ListAPIView):
     queryset = Announcement.objects.all().order_by("-date")
     serializer_class = AnnouncementSerializer
 
+class SpecificTeacherListView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SpecificTeacherSerializer
 
-class StudentListView(APIView):
+    def get(self, request, id):
+        teacher = User.objects.get(id = id)
+        serializer = SpecificTeacherSerializer(teacher)
+
+        return Response(serializer.data)
+
+class SpecificStudentListView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SpecificStudentSerializer
+
+    def get(self, request, id):
+        student = User.objects.get(id = id)
+        serializer = SpecificStudentSerializer(student)
+
+        return Response(serializer.data)
+
+class SpecificParentListView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SpecificParentSerializer
+
+    def get(self, request, id):
+        parent = User.objects.get(id = id)
+        serializer = SpecificParentSerializer(parent)
+
+        return Response(serializer.data)
+
+
+class StudentsInClassListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, class_id):
@@ -274,7 +314,108 @@ class StudentListView(APIView):
 
         serializer = StudentSerializer(students, many=True)
         return Response(serializer.data)
-        
+
+class TeachersInClassListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, class_id):
+        classroom = get_object_or_404(Classroom, class_id=class_id)
+        teacher_ids = classroom.teachers or []
+
+        teachers = User.objects.filter(
+            id__in=teacher_ids, 
+            role=1
+        )
+
+        serializer = StudentSerializer(teachers, many=True)
+        return Response(serializer.data)
+
+class RemoveTeacherView(APIView):
+    def post(self, request, class_id, *args, **kwargs):
+        teacher_id = self.request.data.get('teacher_id')
+        classroom = get_object_or_404(Classroom, class_id=class_id)
+        teacher_ids = classroom.teachers or []
+        if teacher_id in teacher_ids:
+            teacher_ids.remove(teacher_id)
+        classroom.teachers = teacher_ids
+        classroom.save()
+        return Response({"id": teacher_id}, status=status.HTTP_201_CREATED)
+
+class RemoveStudentView(APIView):
+    def post(self, request, class_id, *args, **kwargs):
+        student_id = self.request.data.get('student_id')
+        classroom = get_object_or_404(Classroom, class_id=class_id)
+        student_ids = classroom.students or []
+        if student_id in student_ids:
+            student_ids.remove(student_id)
+        classroom.students = student_ids
+        classroom.save()
+        return Response({"id": student_id}, status=status.HTTP_201_CREATED)
+
+class RemoveParentView(APIView):
+    def post(self, request, student_id, *args, **kwargs):
+        parent_id = self.request.data.get('parent_id')
+        student = User.objects.get(id = student_id)
+        parent_ids = student.parents or []
+        if parent_id in parent_ids:
+            parent_ids.remove(parent_id)
+        student.parents = parent_ids
+        student.save()
+        return Response({"id": student_id}, status=status.HTTP_201_CREATED)
+
+
+class RemoveChildView(APIView):
+    def post(self, request, parent_id, *args, **kwargs):
+        student_id = self.request.data.get('student_id')
+        student = User.objects.get(id = student_id)
+        parent_ids = student.parents or []
+        if parent_id in parent_ids:
+            parent_ids.remove(parent_id)
+        student.parents = parent_ids
+        student.save()
+        return Response({"id": student_id}, status=status.HTTP_201_CREATED)
+
+class AddParentView(APIView):
+    def post(self, request, student_id, *args, **kwargs):
+        parent_id = self.request.data.get('parent_id')
+        student = User.objects.get(id = student_id)
+        parent_ids = student.parents or []
+        parent_ids.append(parent_id)
+        student.parents = parent_ids
+        student.save()
+        return Response({"id": student_id}, status=status.HTTP_201_CREATED)
+
+class AddChildView(APIView):
+    def post(self, request, parent_id, *args, **kwargs):
+        student_id = self.request.data.get('student_id')
+        student = User.objects.get(id = student_id)
+        parent_ids = student.parents or []
+        parent_ids.append(parent_id)
+        student.parents = parent_ids
+        student.save()
+        return Response({"id": student_id}, status=status.HTTP_201_CREATED)
+
+class AddTeacherView(APIView):
+    def post(self, request, class_id, *args, **kwargs):
+        teacher_id = self.request.data.get('teacher_id')
+        classroom = get_object_or_404(Classroom, class_id=class_id)
+        teacher_ids = classroom.teachers or []
+        teacher_ids.append(teacher_id)
+        classroom.teachers = teacher_ids
+        classroom.save()
+        return Response({"id": teacher_id}, status=status.HTTP_201_CREATED)
+
+class AddStudentView(APIView):
+    def post(self, request, class_id, *args, **kwargs):
+        student_id = self.request.data.get('student_id')
+        classroom = get_object_or_404(Classroom, class_id=class_id)
+        student_ids = classroom.students or []
+        student_ids.append(student_id)
+        classroom.students = student_ids
+        classroom.save()
+        return Response({"id": student_id}, status=status.HTTP_201_CREATED)
+
+
 class CreateLogView(generics.CreateAPIView):
     serializer_class = CreateLogSerializer
     def create(self, request, *args, **kwargs):
@@ -412,42 +553,6 @@ class GetLogsView(generics.GenericAPIView):
 
         return Response(result, status=status.HTTP_200_OK)
 
-class CreateClassAccounts(APIView):
-     def post(self, request): 
-        first_names = self.request.data.get("first_names") 
-        last_names = self.request.data.get("last_names") 
-        emails = self.request.data.get("emails") 
-        class_name = self.request.data.get("class_name") 
-        
-        program = self.request.data.get("program") 
-        schedule = self.request.data.get("schedule") 
-        room = self.request.data.get("room") 
-        gender = self.request.data.get("gender")
-        teachers =  self.request.data.get("teacher_ids") 
-        parents =  self.request.data.get("parent_ids") 
-        parents = parents[0]
-
-        classroom = Classroom.objects.create(class_name = class_name, teachers = teachers, program = program, schedule = schedule, room = room, status = True) 
-        results = {"created": []}
-        students = []
-        for i in range(len(first_names)): 
-            first_name = first_names[i] 
-            last_name = last_names[i] 
-            email = emails[i] 
-            username = f"{first_name}{last_name}" 
-            password = "studentpass" 
-            role_obj = 2
-            if User.objects.filter(username = first_name + last_name).exists():
-                user = User.objects.get(username = first_name + last_name)
-            else:
-                user = User.objects.create_user(username = first_name + last_name, first_name = first_name, parents = parents, last_name = last_name, email = email, gender = gender, password = password, role = role_obj)
-            students.append(user.id)
-            results["created"].append( {"username":username, "student_id":user.id}) 
-        classroom.students = students
-        classroom.save()
-
-        return Response(results, status=status.HTTP_201_CREATED)
-
 
 def _generate_unique_username(first_name, last_name):
     base = f"{first_name}{last_name}".replace(" ", "") or "user"
@@ -459,20 +564,26 @@ def _generate_unique_username(first_name, last_name):
     return username
 
 
-def _find_or_create_account(email, full_name, role, created_accounts):
-    """Find an existing User by email, or create one (role=0 Parent / role=1 Teacher).
+def _find_or_create_account(email, full_name, role, created_accounts, gender):
+    """Find an existing User by email/name, or create one (role=0 Parent / role=1 Teacher).
     Returns None if no email was supplied (e.g. an optional TA row)."""
     email = (email or "").strip()
-    if not email:
-        return None
-
-    existing = User.objects.filter(email=email).first()
-    if existing:
-        return existing
-
     name_parts = (full_name or "").strip().split()
     first_name = name_parts[0] if name_parts else email.split("@")[0]
     last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+
+    if role == 2:
+        name_parts_list = full_name.split(" ", 1)
+        student_first_name = name_parts_list[0]
+        student_last_name = name_parts_list[1] if len(name_parts) > 1 else ""
+        existing = User.objects.filter(first_name=student_first_name, last_name=student_last_name).first()
+        if existing != None:
+            return existing
+    else:
+        existing = User.objects.filter(email=email).first()
+        if existing != None:
+            return existing
 
     username = _generate_unique_username(first_name, last_name)
     password = secrets.token_urlsafe(9)
@@ -484,6 +595,7 @@ def _find_or_create_account(email, full_name, role, created_accounts):
         last_name=last_name,
         role=role,
         password=password,
+        gender = gender,
     )
     user.temporary_passwords = password
     user.save()
@@ -494,29 +606,180 @@ def _find_or_create_account(email, full_name, role, created_accounts):
     return user
 
 
-def _create_student_account(full_name, created_accounts):
-    """Students have no email column in the sheet, so they're always created fresh (no dedup)."""
-    name_parts = (full_name or "").strip().split()
-    first_name = name_parts[0] if name_parts else "Student"
-    last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+class BulkCreateClasses(APIView):
+    """Accepts a flat list of parsed spreadsheet rows (one per student) and
+    creates/reuses classes, teachers, TAs, parents, and students, linking them
+    all together in one pass."""
+    permission_classes = [IsAuthenticated]
 
-    username = _generate_unique_username(first_name, last_name)
-    password = secrets.token_urlsafe(9)
+    def post(self, request):
+        rows = self.request.data.get("rows") or []
 
-    user = User.objects.create_user(
-        username=username,
-        first_name=first_name,
-        last_name=last_name,
-        role=2,
-        password=password,
-    )
-    user.temporary_passwords = password
-    user.save()
+        created_accounts = []
+        classes_created = 0
+        classes_reused = 0
+        classroom_cache = {}
 
-    created_accounts.append({
-        "username": username, "email": "", "role": 2, "temporary_password": password,
-    })
-    return user
+        with transaction.atomic():
+            for row in rows:
+                class_name = (row.get("class_name") or "").strip()
+                if not class_name:
+                    continue
+
+                cache_key = class_name.lower()
+                classroom = classroom_cache.get(cache_key)
+                if classroom is None:
+                    classroom = Classroom.objects.filter(class_name__iexact=class_name).first()
+                    if classroom is None:
+                        classroom = Classroom.objects.create(
+                            class_name=class_name, teachers=[], students=[], status=True,
+                        )
+                        classes_created += 1
+                    else:
+                        classes_reused += 1
+                    classroom_cache[cache_key] = classroom
+
+                teacher = _find_or_create_account(row.get("teacher_email"), row.get("teacher_name"), 1, created_accounts, None)
+                ta = _find_or_create_account(row.get("ta_email"), row.get("ta_name"), 1, created_accounts, None)
+                parent = _find_or_create_account(row.get("parent_email"), row.get("parent_name"), 0, created_accounts, None)
+                student = _find_or_create_account("", row.get("student_name"), 2, created_accounts, row.get("gender")=="Male")
+
+                classroom.teachers = classroom.teachers or []
+                for teacher_user in (teacher, ta):
+                    if teacher_user and teacher_user.id not in classroom.teachers:
+                        classroom.teachers.append(teacher_user.id)
+
+                classroom.students = classroom.students or []
+                if student.id not in classroom.students:
+                    classroom.students.append(student.id)
+                classroom.save()
+
+                if parent:
+                    student.parents = list(set((student.parents or []) + [parent.id]))
+                    student.save()
+
+        return Response({
+            "classes_created": classes_created,
+            "classes_reused": classes_reused,
+            "accounts_created": created_accounts,
+        }, status=status.HTTP_201_CREATED)
+
+
+
+class CreateClassAccounts(APIView):
+    def post(self, request):
+        data = request.data
+        class_name = data.get("class_name")
+        gender = data.get("gender")
+        teacher_entries = data.get("teachers") or []
+        student_entries = data.get("students") or []
+
+        if not class_name:
+            return Response({"error": "class_name is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Shared list — _find_or_create_account appends to this every time it
+        # actually creates a new account, so it doubles as our response payload.
+        created_accounts = []
+
+        # --- Teachers: existing (by id) or brand new (name + email) ---
+        teacher_ids = []
+        for entry in teacher_entries:
+            teacher_id = entry.get("teacher_id")
+            if teacher_id:
+                try:
+                    teacher = User.objects.get(id=teacher_id, role=1)
+                except User.DoesNotExist:
+                    return Response(
+                        {"error": f"Teacher with id {teacher_id} was not found."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                first_name = (entry.get("first_name") or "").strip()
+                last_name = (entry.get("last_name") or "").strip()
+                email = (entry.get("email") or "").strip()
+                if not first_name or not last_name or not email:
+                    return Response(
+                        {"error": "Each new teacher needs a first name, last name, and email."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                full_name = f"{first_name} {last_name}"
+                teacher = _find_or_create_account(email, full_name, 1, created_accounts, None)
+
+            teacher_ids.append(teacher.id)
+
+        if Classroom.objects.filter(class_name=class_name).exists():
+            classroom = Classroom.objects.get(class_name=class_name, status=True)
+            if classroom.teachers:
+                classroom.teachers.extend(teacher_ids)
+            else:
+                classroom.teachers = teacher_ids
+            classroom.save()
+        else:
+            classroom,__ = Classroom.objects.get_or_create(class_name=class_name, teachers=teacher_ids, status=True)
+
+        # --- Students: existing (by id) or brand new (name only — no email) ---
+        student_ids = []
+        for student_entry in student_entries:
+            student_id = student_entry.get("student_id")
+            if student_id:
+                try:
+                    student = User.objects.get(id=student_id, role=2)
+                except User.DoesNotExist:
+                    return Response(
+                        {"error": f"Student with id {student_id} was not found."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                first_name = (student_entry.get("first_name") or "").strip()
+                last_name = (student_entry.get("last_name") or "").strip()
+                if not first_name or not last_name:
+                    return Response(
+                        {"error": "Each new student needs a first name and last name."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                full_name = f"{first_name} {last_name}"
+                student = _find_or_create_account(None, full_name, 2, created_accounts, gender)
+
+            # --- Parents for this student: existing (by id) or brand new (name + email) ---
+            parent_ids = []
+            for parent_entry in (student_entry.get("parents") or []):
+                parent_id = parent_entry.get("parent_id")
+                if parent_id:
+                    try:
+                        parent = User.objects.get(id=parent_id, role=0)
+                    except User.DoesNotExist:
+                        return Response(
+                            {"error": f"Parent with id {parent_id} was not found."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                else:
+                    p_first = (parent_entry.get("first_name") or "").strip()
+                    p_last = (parent_entry.get("last_name") or "").strip()
+                    p_email = (parent_entry.get("email") or "").strip()
+                    if not p_first or not p_email:
+                        return Response(
+                            {"error": "Each new parent needs at least a first name and email."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    p_full_name = f"{p_first} {p_last}".strip()
+                    parent = _find_or_create_account(p_email, p_full_name, 0, created_accounts, None)
+
+                parent_ids.append(parent.id)
+
+            if parent_ids and student.parents:
+                student.parents.extend(parent_ids)
+                student.save()
+            elif parent_ids:
+                student.parents = parent_ids
+                student.save()         
+
+            student_ids.append(student.id)
+
+        classroom.students.extend(student_ids)
+        classroom.save()
+
+        return Response({"created": created_accounts}, status=status.HTTP_201_CREATED)
+
 
 class CheckExistingAccounts(APIView):
 
@@ -563,60 +826,3 @@ class CheckExistingAccounts(APIView):
 
         return JsonResponse({"results": results})
 
-class BulkCreateClasses(APIView):
-    """Accepts a flat list of parsed spreadsheet rows (one per student) and
-    creates/reuses classes, teachers, TAs, parents, and students, linking them
-    all together in one pass."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        rows = self.request.data.get("rows") or []
-
-        created_accounts = []
-        classes_created = 0
-        classes_reused = 0
-        classroom_cache = {}
-
-        with transaction.atomic():
-            for row in rows:
-                class_name = (row.get("class_name") or "").strip()
-                if not class_name:
-                    continue
-
-                cache_key = class_name.lower()
-                classroom = classroom_cache.get(cache_key)
-                if classroom is None:
-                    classroom = Classroom.objects.filter(class_name__iexact=class_name).first()
-                    if classroom is None:
-                        classroom = Classroom.objects.create(
-                            class_name=class_name, teachers=[], students=[], status=True,
-                        )
-                        classes_created += 1
-                    else:
-                        classes_reused += 1
-                    classroom_cache[cache_key] = classroom
-
-                teacher = _find_or_create_account(row.get("teacher_email"), row.get("teacher_name"), 1, created_accounts)
-                ta = _find_or_create_account(row.get("ta_email"), row.get("ta_name"), 1, created_accounts)
-                parent = _find_or_create_account(row.get("parent_email"), row.get("parent_name"), 0, created_accounts)
-                student = _create_student_account(row.get("student_name"), created_accounts)
-
-                classroom.teachers = classroom.teachers or []
-                for teacher_user in (teacher, ta):
-                    if teacher_user and teacher_user.id not in classroom.teachers:
-                        classroom.teachers.append(teacher_user.id)
-
-                classroom.students = classroom.students or []
-                if student.id not in classroom.students:
-                    classroom.students.append(student.id)
-                classroom.save()
-
-                if parent:
-                    student.parents = list(set((student.parents or []) + [parent.id]))
-                    student.save()
-
-        return Response({
-            "classes_created": classes_created,
-            "classes_reused": classes_reused,
-            "accounts_created": created_accounts,
-        }, status=status.HTTP_201_CREATED)

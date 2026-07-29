@@ -35,7 +35,42 @@ const CSV_MIME_TYPES = ['text/csv', 'text/comma-separated-values', 'application/
 
 const ROLE_LABELS = { 0: 'Parent', 1: 'Teacher', 2: 'Student' };
 
-// Minimal CSV parser that handles quoted fields (commas/newlines inside quotes)
+// This field determines which side of campus / roommate group a student is
+// placed with, so it is strictly Male or Female — no free-text/custom values.
+const GENDER_OPTIONS = ['Male', 'Female'];
+
+// Normalizes loose CSV gender values (M/F/m/f/etc.) into Male or Female.
+// Anything that doesn't clearly match either is left blank so it's obvious
+// in the preview that it still needs to be set.
+function normalizeGenderLabel(value) {
+  const v = String(value || '').trim();
+  if (!v) return '';
+  const lower = v.toLowerCase();
+  if (['m', 'male', 'boy'].includes(lower)) return 'Male';
+  if (['f', 'female', 'girl'].includes(lower)) return 'Female';
+  return '';
+}
+
+// Converts a Google Sheets share link (edit/view URL) into the direct CSV
+// export URL for that sheet/tab, e.g.
+//   https://docs.google.com/spreadsheets/d/ABC123/edit#gid=456
+//   -> https://docs.google.com/spreadsheets/d/ABC123/export?format=csv&gid=456
+function toGoogleSheetsCsvUrl(input) {
+  const trimmed = String(input || '').trim();
+  if (!trimmed) return null;
+
+  const idMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!idMatch) return null;
+  const sheetId = idMatch[1];
+
+  // gid can show up as #gid=123 or ?gid=123
+  const gidMatch = trimmed.match(/[#?&]gid=([0-9]+)/);
+  const gid = gidMatch ? gidMatch[1] : null;
+
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv${gid ? `&gid=${gid}` : ''}`;
+}
+
+
 function parseCSV(text) {
   const rows = [];
   let row = [];
@@ -121,6 +156,23 @@ function ExistingBadge({ exists }) {
   );
 }
 
+function GenderTag({ gender }) {
+  const label = normalizeGenderLabel(gender);
+  if (!label) {
+    // Blank or unrecognized value — flag it since housing placement needs Male or Female.
+    return (
+      <View style={styles.genderTagMissing}>
+        <Text style={styles.genderTagMissingText}>Set gender</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.genderTag}>
+      <Text style={styles.genderTagText}>{label}</Text>
+    </View>
+  );
+}
+
 function EditIconButton({ onPress }) {
   return (
     <Pressable onPress={onPress} hitSlop={8} style={styles.editIconButton}>
@@ -129,7 +181,7 @@ function EditIconButton({ onPress }) {
   );
 }
 
-function EditForm({ values, onChange, onSave, onCancel, showEmail }) {
+function EditForm({ values, onChange, onSave, onCancel, showEmail, showGender }) {
   return (
     <View style={styles.editForm}>
       <TextInput
@@ -150,6 +202,32 @@ function EditForm({ values, onChange, onSave, onCancel, showEmail }) {
           autoCapitalize="none"
           keyboardType="email-address"
         />
+      )}
+      {showGender && (
+        <View>
+          <Text style={styles.editFieldLabel}>Gender</Text>
+          <View style={styles.genderOptionsRow}>
+            {GENDER_OPTIONS.map((option) => {
+              const selected = normalizeGenderLabel(values.gender) === option;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => onChange({ ...values, gender: option })}
+                  style={[styles.genderOptionButton, selected && styles.genderOptionButtonSelected]}
+                >
+                  <Text
+                    style={[
+                      styles.genderOptionButtonText,
+                      selected && styles.genderOptionButtonTextSelected,
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
       )}
       <View style={styles.editFormActions}>
         <Pressable onPress={onCancel} style={styles.editCancelButton}>
@@ -172,6 +250,7 @@ function normalizeRow(raw) {
     ta_name: get('TA Name'),
     ta_email: get('TA Email'),
     student_name: get('Student'),
+    gender: get('Gender'),
     parent_email: get('Parent Email'),
     parent_name: get('Parent Name'),
   };
@@ -181,6 +260,8 @@ export default function CreateBulkClassesScreen({ navigation }) {
   const [fileName, setFileName] = useState(null);
   const [rows, setRows] = useState(null); // parsed + normalized rows, awaiting confirmation
   const [parsing, setParsing] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [loadingSheet, setLoadingSheet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null); // response from the backend after submit
   const [editing, setEditing] = useState(null); // { type: 'teacher'|'ta'|'student'|'parent', className?, rowIndex? }
@@ -201,6 +282,32 @@ export default function CreateBulkClassesScreen({ navigation }) {
     });
     return groups;
   }, [rows]);
+
+  async function loadRowsFromCsvText(text, sourceName) {
+    if (!text || !text.trim()) {
+      Alert.alert('Empty sheet', 'That file or sheet appears to be empty.');
+      return false;
+    }
+
+    const rawRows = parseCSV(text);
+    const parsedRows = rawRows
+      .map(normalizeRow)
+      .filter((row) => row.class_name || row.student_name);
+
+    if (parsedRows.length === 0) {
+      Alert.alert(
+        'No rows found',
+        'That didn\u2019t contain any recognizable rows. Check the column headers match the template.'
+      );
+      return false;
+    }
+
+    const rowsWithExistence = await checkExistingAccounts(parsedRows);
+
+    setFileName(sourceName);
+    setRows(rowsWithExistence);
+    return true;
+  }
 
   async function handlePickFile() {
     setParsing(true);
@@ -225,28 +332,7 @@ export default function CreateBulkClassesScreen({ navigation }) {
         });
       }
 
-      if (!text || !text.trim()) {
-        Alert.alert('Empty file', 'That file appears to be empty.');
-        return;
-      }
-
-      const rawRows = parseCSV(text);
-      const parsedRows = rawRows
-        .map(normalizeRow)
-        .filter((row) => row.class_name || row.student_name);
-
-      if (parsedRows.length === 0) {
-        Alert.alert(
-          'No rows found',
-          'That file didn\u2019t contain any recognizable rows. Check the column headers match the template.'
-        );
-        return;
-      }
-
-      const rowsWithExistence = await checkExistingAccounts(parsedRows);
-
-      setFileName(asset.name);
-      setRows(rowsWithExistence);
+      await loadRowsFromCsvText(text, asset.name);
     } catch (err) {
       console.error(err);
       Alert.alert('Could not read file', `Please make sure this is a valid .csv file and try again.\n\n${err?.message || ''}`);
@@ -255,9 +341,53 @@ export default function CreateBulkClassesScreen({ navigation }) {
     }
   }
 
+  async function handleLoadFromGoogleSheet() {
+    const csvUrl = toGoogleSheetsCsvUrl(sheetUrl);
+    if (!csvUrl) {
+      Alert.alert(
+        'Invalid link',
+        'That doesn\u2019t look like a Google Sheets link. Paste the full URL from your browser\u2019s address bar.'
+      );
+      return;
+    }
+
+    setLoadingSheet(true);
+    try {
+      const resp = await fetch(csvUrl);
+
+      if (!resp.ok) {
+        Alert.alert(
+          'Could not load sheet',
+          'Make sure the sheet\u2019s sharing setting is "Anyone with the link can view", then try again.'
+        );
+        return;
+      }
+
+      const text = await resp.text();
+
+      // Google returns an HTML sign-in page (not CSV) when the sheet isn't shared publicly.
+      if (text.trim().startsWith('<')) {
+        Alert.alert(
+          'Could not load sheet',
+          'This sheet doesn\u2019t seem to be publicly viewable. In Google Sheets, click Share > General access > "Anyone with the link", then try again.'
+        );
+        return;
+      }
+
+      const loaded = await loadRowsFromCsvText(text, 'Google Sheet');
+      if (loaded) setSheetUrl('');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Could not load sheet', `Please check the link and your connection, then try again.\n\n${err?.message || ''}`);
+    } finally {
+      setLoadingSheet(false);
+    }
+  }
+
   function handleChooseDifferentFile() {
     setRows(null);
     setFileName(null);
+    setSheetUrl('');
   }
 
   function startEditTeacher(className, first) {
@@ -272,7 +402,7 @@ export default function CreateBulkClassesScreen({ navigation }) {
 
   function startEditStudent(rowIndex, row) {
     setEditing({ type: 'student', rowIndex });
-    setEditValues({ name: row.student_name || '' });
+    setEditValues({ name: row.student_name || '', gender: row.gender || '' });
   }
 
   function startEditParent(rowIndex, row) {
@@ -304,7 +434,9 @@ export default function CreateBulkClassesScreen({ navigation }) {
       );
     } else if (editing.type === 'student') {
       updatedRows = rows.map((r, i) =>
-        i === editing.rowIndex ? { ...r, student_name: editValues.name.trim() } : r
+        i === editing.rowIndex
+          ? { ...r, student_name: editValues.name.trim(), gender: (editValues.gender || '').trim() }
+          : r
       );
     } else if (editing.type === 'parent') {
       updatedRows = rows.map((r, i) =>
@@ -527,10 +659,12 @@ export default function CreateBulkClassesScreen({ navigation }) {
                             onChange={setEditValues}
                             onSave={saveEdit}
                             onCancel={cancelEdit}
+                            showGender
                           />
                         ) : (
                           <View style={styles.previewNameRow}>
                             <Text style={styles.previewStudentName}>{row.student_name || '(no name)'}</Text>
+                            <GenderTag gender={row.gender} />
                             <ExistingBadge exists={row.student_exists} />
                             <EditIconButton onPress={() => startEditStudent(originalIndex, row)} />
                           </View>
@@ -604,14 +738,14 @@ export default function CreateBulkClassesScreen({ navigation }) {
           <Text style={styles.sectionTitleText}>Upload a class roster</Text>
           <Text style={[styles.fieldLabel, { marginTop: 8, marginBottom: 20 }]}>
             Upload a .csv file with one row per student, with columns: Class, Teacher Name, Teacher
-            Email, TA Name, TA Email, Student, Parent Email, Parent Name. Classes, teachers, TAs, students, and
+            Email, TA Name, TA Email, Student, Gender, Parent Email, Parent Name. Classes, teachers, TAs, students, and
             parents will be created (or reused, if they already exist) and linked together automatically.
           </Text>
 
           <Pressable
             style={[styles.primaryButton, parsing && styles.primaryButtonDisabled]}
             onPress={handlePickFile}
-            disabled={parsing}
+            disabled={parsing || loadingSheet}
           >
             {parsing ? (
               <ActivityIndicator color={BRONZE_COLORS.surfaceWhite} />
@@ -620,6 +754,44 @@ export default function CreateBulkClassesScreen({ navigation }) {
                 <Ionicons name="cloud-upload-outline" size={20} color={BRONZE_COLORS.surfaceWhite} />
                 <Text style={styles.primaryButtonText}>Choose CSV File</Text>
               </View>
+            )}
+          </Pressable>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Text style={[styles.fieldLabel, { marginBottom: 8 }]}>Paste a Google Sheets link</Text>
+          <TextInput
+            style={styles.editInput}
+            value={sheetUrl}
+            onChangeText={setSheetUrl}
+            placeholder="https://docs.google.com/spreadsheets/d/..."
+            placeholderTextColor={BRONZE_COLORS.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            editable={!parsing && !loadingSheet}
+          />
+          <Text style={[styles.fieldLabel, { fontWeight: '400', marginTop: 6, marginBottom: 14 }]}>
+            The sheet's sharing setting must be "Anyone with the link can view."
+          </Text>
+
+          <Pressable
+            style={[
+              styles.secondaryButton,
+              { marginBottom: 0 },
+              (loadingSheet || !sheetUrl.trim()) && styles.primaryButtonDisabled,
+            ]}
+            onPress={handleLoadFromGoogleSheet}
+            disabled={parsing || loadingSheet || !sheetUrl.trim()}
+          >
+            {loadingSheet ? (
+              <ActivityIndicator color={BRONZE_COLORS.bronzeBright} />
+            ) : (
+              <Text style={styles.secondaryButtonText}>Load from Google Sheets</Text>
             )}
           </Pressable>
         </View>
@@ -667,6 +839,15 @@ const styles = StyleSheet.create({
   fileName: { fontSize: 15, fontWeight: '600', color: BRONZE_COLORS.textDark, flexShrink: 1 },
 
   fieldLabel: { fontSize: 13, fontWeight: '600', color: BRONZE_COLORS.textMuted },
+
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginVertical: 20,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: BRONZE_COLORS.borderLight },
+  dividerText: { fontSize: 12, fontWeight: '700', color: BRONZE_COLORS.textMuted, letterSpacing: 0.5 },
 
   studentCard: {
     backgroundColor: BRONZE_COLORS.surfaceWhite,
@@ -721,6 +902,25 @@ const styles = StyleSheet.create({
   badgeLabelExisting: { color: '#7A5B06' },
   badgeLabelNew: { color: BRONZE_COLORS.success },
 
+  genderTag: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    backgroundColor: '#EDEBF7',
+    borderColor: '#8B7FC7',
+  },
+  genderTagText: { fontSize: 11, fontWeight: '700', color: '#4B3E9E' },
+  genderTagMissing: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    backgroundColor: '#FCE7E7',
+    borderColor: BRONZE_COLORS.danger,
+  },
+  genderTagMissingText: { fontSize: 11, fontWeight: '700', color: BRONZE_COLORS.danger },
+
   editIconButton: {
     padding: 4,
     borderRadius: 6,
@@ -730,6 +930,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 4,
     gap: 8,
+  },
+  editFieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRONZE_COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   editInput: {
     borderWidth: 1,
@@ -741,6 +949,24 @@ const styles = StyleSheet.create({
     color: BRONZE_COLORS.textDark,
     backgroundColor: BRONZE_COLORS.surfaceWhite,
   },
+  genderOptionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  genderOptionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BRONZE_COLORS.borderLight,
+    backgroundColor: BRONZE_COLORS.surfaceWhite,
+  },
+  genderOptionButtonSelected: {
+    backgroundColor: BRONZE_COLORS.bronzeBright,
+    borderColor: BRONZE_COLORS.bronzeBright,
+  },
+  genderOptionButtonText: { fontSize: 13, fontWeight: '600', color: BRONZE_COLORS.textMuted },
+  genderOptionButtonTextSelected: { color: BRONZE_COLORS.surfaceWhite },
   editFormActions: {
     flexDirection: 'row',
     gap: 10,

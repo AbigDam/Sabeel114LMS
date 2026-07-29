@@ -1,14 +1,21 @@
 // screens/StudentViewScreen.js
 // -----------------------------------------------------------------------------
-// Student roster for a class.
+// Roster for a class: teachers + students.
 // Navigates here from Dashboard with:  navigation.navigate('StudentRoster', { course })
 // Tapping a student navigates to:      navigation.navigate('AddLog', { course, student })
+//
+// Adding people navigates to picker screens (not built here — see notes at
+// bottom of file for the screens + backend endpoints this file assumes exist):
+//   navigation.navigate('AddStudentToClass', { course })
+//   navigation.navigate('AddTeacherToClass', { course })
 // -----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -17,39 +24,79 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api.js'
 import { brand }                                 from '../constants/brand';
 import { colors, fontFamilies, radii, shadow, spacing } from '../constants/theme';
 
 // ---------------------------------------------------------------------------
-// Student row
+// Helpers
 // ---------------------------------------------------------------------------
-function StudentRow({ student, onPress }) {
-const fullName = student.first_name && student.last_name 
-    ? `${student.first_name} ${student.last_name}`
-    : student.name ?? 'Unknown Student';
+function fullNameOf(person) {
+  return person.first_name && person.last_name
+    ? `${person.first_name} ${person.last_name}`
+    : person.name ?? 'Unknown';
+}
 
-  // Extract initials cleanly from first and last names
-  const initials = student.first_name && student.last_name
-    ? (student.first_name.charAt(0) + student.last_name.charAt(0)).toUpperCase()
+function initialsOf(person) {
+  return person.first_name && person.last_name
+    ? (person.first_name.charAt(0) + person.last_name.charAt(0)).toUpperCase()
     : '?';
+}
 
+// Alert.alert's button callbacks don't fire on Expo/React Native web — the
+// dialog silently no-ops there. window.confirm is synchronous and works on
+// web; Alert.alert is used everywhere else.
+function confirmAsync(title, message) {
+  if (Platform.OS === 'web') {
+    return Promise.resolve(typeof window !== 'undefined' ? window.confirm(`${title}\n\n${message}`) : false);
+  }
+  return new Promise(resolve => {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Remove', style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Shared row (used for both teachers and students)
+// ---------------------------------------------------------------------------
+function PersonRow({ person, subtitle, onPress, onRemove, removeLabel }) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initials}</Text>
-      </View>
+    <View style={styles.row}>
+      <TouchableOpacity
+        style={styles.rowMain}
+        onPress={onPress}
+        activeOpacity={onPress ? 0.7 : 1}
+        disabled={!onPress}
+      >
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initialsOf(person)}</Text>
+        </View>
 
-      <View style={styles.rowBody}>
-        <Text style={styles.studentName}>{fullName}</Text>
-        {student.level ? (
-          <Text style={styles.studentSub}>{student.level}</Text>
+        <View style={styles.rowBody}>
+          <Text style={styles.studentName}>{fullNameOf(person)}</Text>
+          {subtitle ? <Text style={styles.studentSub}>{subtitle}</Text> : null}
+        </View>
+
+        {onPress ? (
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         ) : null}
-      </View>
+      </TouchableOpacity>
 
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-    </TouchableOpacity>
+      {onRemove ? (
+        <TouchableOpacity
+          onPress={onRemove}
+          hitSlop={12}
+          style={styles.removeBtn}
+          accessibilityLabel={removeLabel}
+        >
+          <Ionicons name="remove-circle-outline" size={22} color={colors.error ?? '#C0392B'} />
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 }
 
@@ -60,39 +107,146 @@ export default function StudentView({ route, navigation }) {
   const { course } = route.params;
 
   const [students, setStudents] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [search, setSearch]     = useState('');
 
   // ------------------------------------------------------------------
-  // Fetch roster
+  // Fetch roster (students + teachers together)
   // ------------------------------------------------------------------
-const fetchStudents = useCallback(async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    const token = await AsyncStorage.getItem('authToken');
-    const response = await api.get(`/select_students/${course.id}/`);
-    setStudents(response.data);
-  } catch (err) {
-    console.error(err);
-    setError(err.message || 'Failed to fetch student roster.');
-  } finally {
-    setLoading(false); // <--- This ensures the loader stops spinning
-  }
-}, [course.id]);
+  const fetchRoster = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [studentsRes, teachersRes] = await Promise.all([
+        api.get(`/select_students/${course.id}/`),
+        api.get(`/select_teachers/${course.id}/`),
+      ]);
+      setStudents(studentsRes.data);
+      setTeachers(teachersRes.data);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to fetch class roster.');
+    } finally {
+      setLoading(false);
+    }
+  }, [course.id]);
 
-useEffect(() => {
-  fetchStudents();
-}, [fetchStudents]);
+  useEffect(() => {
+    fetchRoster();
+  }, [fetchRoster]);
+
+  // Refresh whenever this screen regains focus (e.g. returning from the
+  // Add Student / Add Teacher pickers), so newly added people show up.
+  useFocusEffect(
+    useCallback(() => {
+      fetchRoster();
+    }, [fetchRoster]),
+  );
+
   // ------------------------------------------------------------------
-  // Search filter
+  // Remove handlers (optimistic update + rollback on failure)
+  // ------------------------------------------------------------------
+  const removeStudent = useCallback(async (student) => {
+    const confirmed = true;
+
+    const previous = students;
+    setStudents(prev => prev.filter(s => s.id !== student.id));
+    try {
+      await api.post(`/remove_student/${course.id}/`, { student_id: student.id });
+    } catch (err) {
+      console.error(err);
+      setStudents(previous);
+      Alert.alert('Something went wrong', 'Could not remove that student. Please try again.');
+    }
+  }, [course, students]);
+
+  const removeTeacher = useCallback(async (teacher) => {
+    const confirmed = true;
+
+    const previous = teachers;
+    setTeachers(prev => prev.filter(t => t.id !== teacher.id));
+    try {
+      await api.post(`/remove_teacher/${course.id}/`, { teacher_id: teacher.id });
+    } catch (err) {
+      console.error(err);
+      setTeachers(previous);
+      Alert.alert('Something went wrong', 'Could not remove that teacher. Please try again.');
+    }
+  }, [course, teachers]);
+
+  // ------------------------------------------------------------------
+  // Search filter (students only)
   // ------------------------------------------------------------------
   const filtered = search.trim()
     ? students.filter(s =>
-        s.name?.toLowerCase().includes(search.trim().toLowerCase()),
+        fullNameOf(s).toLowerCase().includes(search.trim().toLowerCase()),
       )
     : students;
+
+  // ------------------------------------------------------------------
+  // List header: teachers section + search bar + students section title
+  // ------------------------------------------------------------------
+  const ListHeader = (
+    <View>
+      {/* Teachers */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>Teachers</Text>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => navigation.navigate('AddTeacherToClass', { course })}
+          hitSlop={8}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+          <Text style={styles.addBtnText}>Add teacher</Text>
+        </TouchableOpacity>
+      </View>
+
+      {teachers.length === 0 ? (
+        <Text style={styles.emptySectionText}>No teachers assigned yet</Text>
+      ) : (
+        teachers.map(teacher => (
+          <PersonRow
+            key={String(teacher.id ?? teacher._id)}
+            person={teacher}
+            subtitle={teacher.subject ?? teacher.role ?? null}
+            onRemove={() => removeTeacher(teacher)}
+            removeLabel="Remove teacher"
+          />
+        ))
+      )}
+
+      <View style={styles.sectionDivider} />
+
+      {/* Students section title + add */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>Students</Text>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => navigation.navigate('AddStudentToClass', { course })}
+          hitSlop={8}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+          <Text style={styles.addBtnText}>Add student</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Search bar */}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search" size={16} color={colors.textMuted} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search students…"
+          placeholderTextColor={colors.textMuted}
+          value={search}
+          onChangeText={setSearch}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
+      </View>
+    </View>
+  );
 
   // ------------------------------------------------------------------
   // Render
@@ -114,20 +268,6 @@ useEffect(() => {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Search bar */}
-      <View style={styles.searchWrap}>
-        <Ionicons name="search" size={16} color={colors.textMuted} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search students…"
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-        />
-      </View>
-
       {/* Body */}
       {loading ? (
         <View style={styles.center}>
@@ -136,7 +276,7 @@ useEffect(() => {
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={fetchStudents} style={styles.retryBtn}>
+          <TouchableOpacity onPress={fetchRoster} style={styles.retryBtn}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -145,11 +285,15 @@ useEffect(() => {
           data={filtered}
           keyExtractor={item => String(item.id ?? item._id)}
           renderItem={({ item }) => (
-            <StudentRow
-              student={item}
+            <PersonRow
+              person={item}
+              subtitle={item.level ?? null}
               onPress={() => navigation.navigate('AddLog', { course: course, student: item })}
+              onRemove={() => removeStudent(item)}
+              removeLabel="Remove student"
             />
           )}
+          ListHeaderComponent={ListHeader}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
@@ -197,6 +341,42 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
+  // Section headers (Teachers / Students)
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+  },
+  sectionTitle: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 15,
+    color: colors.text,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  emptySectionText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+  },
+
   // Search
   searchWrap: {
     flexDirection: 'row',
@@ -229,6 +409,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.md,
+  },
+  rowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
   },
   separator: {
@@ -262,6 +447,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
+  removeBtn: {
+    padding: 6,
+    marginLeft: spacing.sm,
+  },
 
   // Empty / error / loading
   center: {
@@ -293,3 +482,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
+// -----------------------------------------------------------------------------
+// NOTES — new backend endpoints this screen assumes (see chat reply for detail)
+// -----------------------------------------------------------------------------
+// GET    /select_teachers/<course_id>/            -> list teachers on the class
+// POST   /remove_student/<course_id>/  {student_id}-> unenroll a student
+// POST   /remove_teacher/<course_id>/  {teacher_id}-> unassign a teacher
+// GET    /students/                                -> all students (for AddStudentToClass picker)
+// GET    /teachers/                                -> all teachers (for AddTeacherToClass picker)
+// POST   /add_student/<course_id>/     {student_id}-> enroll a student
+// POST   /add_teacher/<course_id>/     {teacher_id}-> assign a teacher
+// (Add-student/add-teacher POST endpoints are called from the picker screens,
+// not from this file.)
+// -----------------------------------------------------------------------------

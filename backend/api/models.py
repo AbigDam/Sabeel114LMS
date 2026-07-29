@@ -25,9 +25,6 @@ class Classroom(models.Model):
     teachers = models.JSONField(list) #List of teacher IDs
     students = models.JSONField(list, blank = True, null=True) #List of student IDs
     class_name = models.CharField(max_length=255, blank=True, null=True)
-    program = models.CharField(max_length=255, blank=True, null=True)
-    schedule = models.CharField(max_length=255, blank=True, null=True)
-    room = models.CharField(max_length=255, blank=True, null=True)
     status = models.BooleanField(default = True)
     #schedule_days = models.CharField(max_length=255)
     #start_time = models.TimeField()

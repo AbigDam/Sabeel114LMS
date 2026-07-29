@@ -50,7 +50,7 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     "Sabeel LMS"
 )
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["sabeel114lms.onrender.com", "localhost", "127.0.0.1"]
 

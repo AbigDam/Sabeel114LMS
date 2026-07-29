@@ -77,11 +77,8 @@ class ClassSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "title",
-            "program",
             "teachers",
             "students",
-            "schedule",
-            "room",
             "status",
         ]
 
@@ -145,8 +142,142 @@ class CreateLogSerializer(serializers.Serializer):
             attendance=validated_data.get("attendance", 0),
         )
         return log
-        
-# ── Student ──────────────────────────────────────────────────────────────────
+
+class SpecificTeacherSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    classes = serializers.SerializerMethodField()
+    student_count = serializers.SerializerMethodField()
+    temp_password = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "username",
+            "email",
+            "classes",
+            "student_count",
+            "is_admin",
+            "temp_password",
+        ]
+
+    def get_classes(self, obj):
+        classes = Classroom.objects.filter(teachers__contains=[obj.id])
+
+        return [
+            {
+                "id": classroom.class_id,
+                "name": classroom.class_name,
+            }
+            for classroom in classes
+        ]
+
+    def get_student_count(self, obj):
+        classes = Classroom.objects.filter(teachers__contains=[obj.id])
+
+        unique_students = set()
+        for classroom in classes:
+            for student in classroom.students:
+                unique_students.add(student)
+
+        return len(unique_students)
+
+    def get_temp_password(self, obj):
+        return obj.temporary_passwords
+
+    def get_is_admin(self, obj):
+        return obj.is_superuser or obj.is_staff
+
+class SpecificStudentSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    classes = serializers.SerializerMethodField()
+    parents = serializers.SerializerMethodField()
+    score = serializers.SerializerMethodField()
+    temp_password = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "parents",
+            "classes",
+            "score",
+            "temp_password",
+        ]
+
+    def get_classes(self, obj):
+        classes = Classroom.objects.filter(students__contains=[obj.id])
+
+        return [
+            {
+                "id": classroom.class_id,
+                "name": classroom.class_name,
+            }
+            for classroom in classes
+        ]
+
+    def get_parents(self, obj):
+        parent_ids = obj.parents
+        parents = User.objects.filter(id__in=parent_ids)
+
+        return [
+            {
+                "id": parent.id,
+                "first_name": parent.first_name,
+                "last_name": parent.last_name,
+            }
+            for parent in parents
+        ]
+
+    def get_temp_password(self, obj):
+        return obj.temporary_passwords
+
+    def get_score(self, obj):
+        return obj.score
+
+class SpecificParentSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    children = serializers.SerializerMethodField()
+    temp_password = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "username",
+            "email",
+            "children",
+            "email_notifications",
+            "temp_password",
+        ]
+
+    def get_children(self, obj):
+        parent_id = obj.id
+        children = []
+        students = User.objects.filter(role = 2)
+        for student in students:
+            if parent_id in student.parents:
+                children.append(student)
+        return [
+            {
+                "id": student.id,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+            }
+            for student in students
+        ]
+
+    def get_temp_password(self, obj):
+        return obj.temporary_passwords
+
+
 class StudentSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
 
