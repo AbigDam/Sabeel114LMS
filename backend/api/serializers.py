@@ -1,14 +1,62 @@
 import datetime
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from .models import *
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.response import Response
 from rest_framework import status
 
 User = get_user_model()
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, required=True)
+    new_password = serializers.CharField(write_only=True, required=True)
+ 
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            # Field-level error -> DRF returns {"current_password": [...]}
+            # which matches what the frontend already expects.
+            raise serializers.ValidationError('Current password is incorrect.')
+        return value
+ 
+    def validate_new_password(self, value):
+        # Runs Django's configured password validators (length, common
+        # password check, numeric-only check, etc. — whatever you have in
+        # AUTH_PASSWORD_VALIDATORS in settings.py).
+        validate_password(value, user=self.context['request'].user)
+        return value
+ 
+    def validate(self, attrs):
+        if attrs['current_password'] == attrs['new_password']:
+            raise serializers.ValidationError({
+                'new_password': 'New password must be different from your current password.'
+            })
+        return attrs
+
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = User.USERNAME_FIELD
+
+    def validate(self, attrs):
+        username_or_email = attrs.get("username")
+        password = attrs.get("password")
+
+        try:
+            user = User.objects.get(email__iexact=username_or_email)
+            username = getattr(user, User.USERNAME_FIELD)
+        except User.DoesNotExist:
+            username = username_or_email
+
+        attrs["username"] = username
+
+        return super().validate(attrs)
 
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField()

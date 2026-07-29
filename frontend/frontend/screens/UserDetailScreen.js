@@ -1,14 +1,3 @@
-// screens/UserDetailScreen.js
-// -----------------------------------------------------------------------------
-// Shows full detail for one user. Reused for all three user types.
-// Navigate here with:
-//   navigation.navigate('UserDetail', { type: 'teacher' | 'student' | 'parent', id })
-//
-// Linked people (a student's parents, a parent's children) push another copy
-// of this same screen, so you can walk the family/roster graph.
-// Tapping a class navigates to the existing class roster screen:
-//   navigation.navigate('StudentRoster', { course })
-// -----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -53,14 +42,14 @@ function personName(person) {
 // Alert.alert's button callbacks don't fire on Expo/React Native web — the
 // dialog silently no-ops there. window.confirm is synchronous and works on
 // web; Alert.alert is used everywhere else.
-function confirmAsync(title, message) {
+function confirmAsync(title, message, confirmLabel = 'Remove') {
   if (Platform.OS === 'web') {
     return Promise.resolve(typeof window !== 'undefined' ? window.confirm(`${title}\n\n${message}`) : false);
   }
   return new Promise(resolve => {
     Alert.alert(title, message, [
       { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Remove', style: 'destructive', onPress: () => resolve(true) },
+      { text: confirmLabel, style: confirmLabel === 'Remove' ? 'destructive' : 'default', onPress: () => resolve(true) },
     ]);
   });
 }
@@ -230,6 +219,28 @@ export default function UserDetailScreen({ route, navigation }) {
     }
   }, [id, user, fullName]);
 
+  const toggleAdmin = useCallback(async () => {
+    const grantingAdmin = !user.is_admin;
+    const confirmed = await confirmAsync(
+      grantingAdmin ? 'Grant admin access' : 'Remove admin access',
+      grantingAdmin
+        ? `Give ${fullName} administrative access?`
+        : `Remove ${fullName}'s administrative access?`,
+      grantingAdmin ? 'Grant' : 'Remove',
+    );
+    if (!confirmed) return;
+
+    const previous = user;
+    setUser(prev => ({ ...prev, is_admin: grantingAdmin }));
+    try {
+      await api.post(`/set_admin/${id}/`, { is_admin: grantingAdmin });
+    } catch (err) {
+      console.error(err);
+      setUser(previous);
+      Alert.alert('Something went wrong', 'Could not update admin access. Please try again.');
+    }
+  }, [id, user, fullName]);
+
   const openClass = (course) => {
     if (!course?.id) return;
     navigation.navigate('StudentRoster', { course });
@@ -297,7 +308,19 @@ export default function UserDetailScreen({ route, navigation }) {
                 </InfoRow>
 
                 <InfoRow label="Admin">
-                  <Badge text={user.is_admin ? 'Admin' : 'Not admin'} tone={user.is_admin ? 'positive' : 'neutral'} />
+                  <View style={styles.adminRow}>
+                    <Badge text={user.is_admin ? 'Admin' : 'Not admin'} tone={user.is_admin ? 'positive' : 'neutral'} />
+                    <TouchableOpacity style={styles.adminToggleBtn} onPress={toggleAdmin} hitSlop={8}>
+                      <Ionicons
+                        name={user.is_admin ? 'remove-circle-outline' : 'add-circle-outline'}
+                        size={18}
+                        color={user.is_admin ? (colors.error ?? '#C0392B') : colors.primary}
+                      />
+                      <Text style={[styles.adminToggleBtnText, user.is_admin && styles.adminToggleBtnTextDanger]}>
+                        {user.is_admin ? 'Remove admin' : 'Grant admin'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </InfoRow>
 
                 <InfoRow label="Temporary password">
@@ -570,6 +593,26 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
+  // Admin toggle
+  adminRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  adminToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  adminToggleBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  adminToggleBtnTextDanger: {
+    color: colors.error ?? '#C0392B',
+  },
+
   // Empty / error / loading
   center: {
     flex: 1,
@@ -596,25 +639,3 @@ const styles = StyleSheet.create({
   },
 });
 
-// -----------------------------------------------------------------------------
-// NOTES — backend endpoints this screen calls
-// -----------------------------------------------------------------------------
-// GET /teachers/<id>/
-//   -> { id, first_name, last_name, username, email,
-//        classes: [{ id, name }], student_count, is_admin, temp_password }
-//
-// GET /students/<id>/
-//   -> { id, first_name, last_name,
-//        parents: [{ id, first_name, last_name }],
-//        classes: [{ id, name }], score, temp_password }
-//
-// GET /parents/<id>/
-//   -> { id, first_name, last_name, username, email,
-//        children: [{ id, first_name, last_name }], email_notifications,
-//        temp_password }   // null / "No password" once the parent has logged in
-//
-// POST /remove_parent/<student_id>/  { parent_id } -> unlink a parent from a student
-// POST /remove_child/<parent_id>/    { student_id } -> unlink a child from a parent
-// (Add-parent/add-child POST endpoints are called from the AddParentToStudent /
-// AddChildToParent picker screens, not from this file.)
-// -----------------------------------------------------------------------------

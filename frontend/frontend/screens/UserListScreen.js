@@ -1,7 +1,16 @@
+// screens/UserListScreen.js
+// -----------------------------------------------------------------------------
+// Browse all users, grouped into three tabs: Teachers / Students / Parents.
+// Tapping a user opens their detail page:
+//   navigation.navigate('UserDetail', { type: 'teacher' | 'student' | 'parent', id })
+// -----------------------------------------------------------------------------
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -38,23 +47,49 @@ function initialsOf(person) {
     : '?';
 }
 
+// Alert.alert's button callbacks don't fire on Expo/React Native web — the
+// dialog silently no-ops there. window.confirm is synchronous and works on
+// web; Alert.alert is used everywhere else.
+function confirmAsync(title, message) {
+  if (Platform.OS === 'web') {
+    return Promise.resolve(typeof window !== 'undefined' ? window.confirm(`${title}\n\n${message}`) : false);
+  }
+  return new Promise(resolve => {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Row
 // ---------------------------------------------------------------------------
-function UserRow({ user, subtitle, onPress }) {
+function UserRow({ user, subtitle, onPress, onDelete }) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initialsOf(user)}</Text>
-      </View>
+    <View style={styles.row}>
+      <TouchableOpacity style={styles.rowMain} onPress={onPress} activeOpacity={0.7}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initialsOf(user)}</Text>
+        </View>
 
-      <View style={styles.rowBody}>
-        <Text style={styles.userName}>{fullNameOf(user)}</Text>
-        {subtitle ? <Text style={styles.userSub}>{subtitle}</Text> : null}
-      </View>
+        <View style={styles.rowBody}>
+          <Text style={styles.userName}>{fullNameOf(user)}</Text>
+          {subtitle ? <Text style={styles.userSub}>{subtitle}</Text> : null}
+        </View>
 
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-    </TouchableOpacity>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={onDelete}
+        hitSlop={12}
+        style={styles.deleteBtn}
+        accessibilityLabel="Delete user"
+      >
+        <Ionicons name="trash-outline" size={20} color={colors.error ?? '#C0392B'} />
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -102,6 +137,31 @@ export default function UserListScreen({ navigation }) {
   );
 
   const list = dataByTab[activeTab] ?? [];
+
+  // ------------------------------------------------------------------
+  // Delete a user
+  // ------------------------------------------------------------------
+  const deleteUser = useCallback(async (user) => {
+    const confirmed = await confirmAsync(
+      'Delete user',
+      `Delete ${fullNameOf(user)}? This can't be undone.`,
+    );
+    if (!confirmed) return;
+
+    const tabKey = activeTab;
+    const previousList = dataByTab[tabKey];
+    setDataByTab(prev => ({
+      ...prev,
+      [tabKey]: (prev[tabKey] ?? []).filter(u => u.id !== user.id),
+    }));
+    try {
+      await api.delete(`/delete_user/${user.id}/`);
+    } catch (err) {
+      console.error(err);
+      setDataByTab(prev => ({ ...prev, [tabKey]: previousList }));
+      Alert.alert('Something went wrong', 'Could not delete that user. Please try again.');
+    }
+  }, [activeTab, dataByTab]);
 
   // ------------------------------------------------------------------
   // Search filter
@@ -185,6 +245,7 @@ export default function UserListScreen({ navigation }) {
               user={item}
               subtitle={subtitleFor(item)}
               onPress={() => navigation.navigate('UserDetail', { type: activeTab, id: item.id })}
+              onDelete={() => deleteUser(item)}
             />
           )}
           contentContainerStyle={styles.listContent}
@@ -294,7 +355,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.md,
+  },
+  rowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
+  },
+  deleteBtn: {
+    padding: 6,
+    marginLeft: spacing.sm,
   },
   separator: {
     height: StyleSheet.hairlineWidth,
@@ -358,3 +428,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
+// -----------------------------------------------------------------------------
+// NOTES — backend endpoints this screen calls
+// -----------------------------------------------------------------------------
+// GET /teachers/  -> list of teachers   [{ id, first_name, last_name, username }]
+// GET /students/  -> list of students   [{ id, first_name, last_name, level? }]
+// GET /parents/   -> list of parents    [{ id, first_name, last_name, username }]
+// DELETE /delete_user/<id>/ -> permanently delete a user (teacher, student, or parent)
+// -----------------------------------------------------------------------------

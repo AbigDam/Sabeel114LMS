@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
 from .serializers import *
 from .models import *
@@ -15,15 +15,19 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
-
-User = get_user_model()
-
 import os
 import secrets
 from django.db import transaction
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import MyTokenObtainPairSerializer
 
+User = get_user_model()
+
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
 
 def send_email(email, message):
 
@@ -61,6 +65,7 @@ LOG_TYPE_MAP = {
 @api_view(['GET'])
 def test(request):
     return Response({"message": "Testing!  Testing!  Message Recived?"})
+
 
 class UpdateNotificationsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -414,6 +419,37 @@ class AddStudentView(APIView):
         classroom.students = student_ids
         classroom.save()
         return Response({"id": student_id}, status=status.HTTP_201_CREATED)
+
+class SetAdminView(APIView):
+    def post(self, request, teacher_id, *args, **kwargs):
+        teacher = User.objects.get(id = teacher_id)
+        teacher.is_staff = not teacher.is_superuser
+        teacher.is_superuser = not teacher.is_superuser
+        teacher.save()
+        return Response({"id": teacher_id}, status=status.HTTP_201_CREATED)
+
+class DeleteUserView(APIView):
+    def delete(self, request, id, *args, **kwargs):
+        user = User.objects.get(id = id)
+        user.delete()
+        return Response({"id": id}, status=status.HTTP_201_CREATED)
+
+class ChangePassword(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+    
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+        user = request.user
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+    
+        return Response(
+            {'message': 'Password changed successfully.'},
+            status=status.HTTP_200_OK,
+        )
+
 
 
 class CreateLogView(generics.CreateAPIView):

@@ -13,7 +13,6 @@ import { useAuth } from '../context/AuthContext';
 
 const ROLES = [
   { value: 'Teacher', label: 'Teacher', icon: 'school-outline' },
-  { value: 'Parent', label: 'Parent', icon: 'people-outline' },
 ];
 
 export default function SignupScreen({ navigation }) {

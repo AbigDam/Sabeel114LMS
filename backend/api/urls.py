@@ -8,7 +8,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 urlpatterns = [
     path('test/', views.test, name = "test"),
     path('register/', RegisterView.as_view(), name = "register"),
-    path("login/", TokenObtainPairView.as_view(), name="login"),
+    path("login/", MyTokenObtainPairView.as_view(), name="login"),
     path('token/refresh/', TokenRefreshView.as_view()),
 
     path("create_class/", CreateClassView.as_view(), name="create_class"),
@@ -32,6 +32,7 @@ urlpatterns = [
     path("create_log/", CreateLogView.as_view(), name="create_log"),
     path("update_log/", UpdateLogView.as_view(), name='update_log'),
     path("delete_log/", DeleteLogView.as_view(), name='delete_log'),
+    path("delete_user/<int:id>/", DeleteUserView.as_view(), name='delete_user'),
     path("teachers/", TeacherListView.as_view(), name='teachers'),
     path("parents/", ParentListView.as_view(), name='parents'),
     path("students/", StudentListView.as_view(), name='parents'),
@@ -41,6 +42,7 @@ urlpatterns = [
     path("notifications/", UpdateNotificationsView.as_view(), name='notifications'),
     path("check_existing_accounts/", CheckExistingAccounts.as_view(), name='exsistingaccounts'),
     path("bulk_create_classes/", BulkCreateClasses.as_view(), name="bulk_create_classes"),
+    path("change_password/", ChangePassword.as_view(), name="change_password"),
 
     path("male_list/", MaleListView.as_view(), name='male_list'),
     path("female_list/", FemaleListView.as_view(), name='female_list'),
@@ -51,6 +53,8 @@ urlpatterns = [
     path("parent/students/<int:student_id>/performance/", GetPerformanceView.as_view(), name='performance'),
     path("get_logs/", GetLogsView.as_view(), name='get_logs'),
     
+    path("set_admin/<teacher_id>/", SetAdminView.as_view(), name='set_admin'),
+
 
     # Admin Views
     #path("admin/classes/", ClassesList.as_view(), name="admin_classes"),

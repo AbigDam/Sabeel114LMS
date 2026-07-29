@@ -670,6 +670,18 @@ export default function DashboardScreen({ navigation }) {
               </View>
             </View>
           </View>
+          
+          <Pressable
+            onPress={() => navigation.navigate("ChangePassword")}
+            style={({ pressed }) => [
+              styles.settingsButton,
+              pressed && styles.settingsButtonPressed,
+            ]}
+          >
+            <Ionicons name="key-outline" size={18} color="#FBEBE9" />
+            <Text style={styles.settingsButtonText}>Change Password</Text>
+          </Pressable>
+
           <Pressable
             onPress={handleSignOut}
             style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutButtonPressed]}
@@ -749,7 +761,34 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BRONZE_COLORS.bronzeAccent },
   mainLayout: { flex: 1, flexDirection: 'row', backgroundColor: BRONZE_COLORS.bgCanvas },
   desktopNavWrapper: { width: DRAWER_WIDTH, backgroundColor: '#ffffff', borderRightWidth: 1, borderRightColor: BRONZE_COLORS.borderLight },
+  settingsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: 'rgba(255, 255, 255, 0.12)', 
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    paddingHorizontal: 16,
+    height: 40,
+    borderRadius: 20,
+    marginHorizontal: 10,
+    elevation: 2, // Android
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 }, // iOS
+  },
 
+  settingsButtonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.97 }],
+  },
+
+  settingsButtonText: {
+    color: "#FBEBE9",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
   hubHeader: {
     height: 76,
     flexDirection: 'row',

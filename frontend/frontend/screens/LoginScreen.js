@@ -126,11 +126,11 @@ async function handleLogin() {
       {/* <Text style={styles.welcomeSub}>Sign in to manage your classes</Text> */}
 
       <TextField
-        label="Username"
+        label="Username or Email"
         iconName="person-outline"
         value={username}
         onChangeText={setUsername}
-        placeholder="Username"
+        placeholder="Username OR example@email.com "
         error={errors.username}
         autoCapitalize="none"
       />
