@@ -443,6 +443,7 @@ class ChangePassword(APIView):
     
         user = request.user
         user.set_password(serializer.validated_data['new_password'])
+        user.temporary_password ="Password has been changed!"
         user.save()
     
         return Response(
@@ -452,86 +453,135 @@ class ChangePassword(APIView):
 
 
 
+
+# ---------------------------------------------------------------------------
+# Label helpers — shared by both views
+# ---------------------------------------------------------------------------
+RATING_LABELS = {1: "Needs Attention", 2: "Good", 3: "Excellent"}
+
+
+def rating_label(value):
+    return RATING_LABELS.get(value, "N/A")
+
+
+def respect_label(value):
+    return "Did not meet expectations" if value == 1 else "Meets expectations"
+
+
+def build_log_message(log, verb):
+    """verb: 'created' or 'updated' — controls the intro line."""
+    intro = "A new report has been created" if verb == "created" else "A previous report was updated"
+
+    if log.attendance == 0:  # Present
+        return (
+            f"{intro} for your child: {log.student.first_name} {log.student.last_name}\n"
+            f"Details:\n"
+            f"Date: {log.date}\n"
+            f"Attendance: Present\n"
+            f"Homework Preparation: {rating_label(log.hw_prep)}\n"
+            f"Homework Prep Comments: {log.hw_prep_comments or ''}\n"
+            f"Participation: {rating_label(log.behavior)}\n"
+            f"Respect: {respect_label(log.respect)}\n"
+            f"Lesson Progress: {rating_label(log.lesson_prog)}\n"
+            f"Lesson Progress Comments: {log.lesson_prog_comments or ''}\n"
+            f"Next Lesson/Homework: {log.next_lesson or ''}\n"
+            f"Additional Comments: {log.comments or ''}"
+        )
+    else:  # Absent
+        return (
+            f"{intro} for your child: {log.student.first_name} {log.student.last_name}\n"
+            f"Details:\n"
+            f"Date: {log.date}\n"
+            f"Attendance: Absent"
+        )
+
+
+def notify_parents(log, verb):
+    student = log.student
+    if student.parents:
+        for parent_id in student.parents:
+            parent = User.objects.get(id=parent_id)
+            if parent.email_notifications:
+                send_email(parent.email, build_log_message(log, verb))
+
+
+# ---------------------------------------------------------------------------
+# Create
+# ---------------------------------------------------------------------------
 class CreateLogView(generics.CreateAPIView):
     serializer_class = CreateLogSerializer
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         log = serializer.save()
 
-        #send_email("adamkhurshid08@gmail.com", "message1")
-
-        
-        respect = "Did not meet expectations" if log.respect == 1 else "Meets expectations"
-        behavior = "Needs Attention" if log.behavior == 1 else "Good" if log.behavior == 2 else "Excellent"
-        if log.attendance == 0:
-            log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nRespect: {respect}\nBehavior: {behavior}\nAttendance: 'Present' \nComments: {log.comments}"
-        else:
-            log_message = f"A new report has been created for your child: {log.student.first_name} {log.student.last_name}\nDetails:\nDate: {log.date}\nAttendance: 'Absent'"
-        student = log.student
-        if student.parents:
-            for parent_id in student.parents:
-                parent = User.objects.get(id=parent_id)
-                if parent.email_notifications:
-                    send_email(parent.email, log_message)
-                
-            
+        notify_parents(log, verb="created")
 
         return Response({"id": log.log_id}, status=status.HTTP_201_CREATED)
 
+
+# ---------------------------------------------------------------------------
+# Update
+# ---------------------------------------------------------------------------
 class UpdateLogView(generics.GenericAPIView):
     serializer_class = CreateLogSerializer
 
     def get_object(self):
         return get_object_or_404(
             Log,
-            log_id = self.request.data.get('log_id')
+            log_id=self.request.data.get('log_id'),
         )
 
     def post(self, request, *args, **kwargs):
         instance = self.get_object()
-        
-        old_respect_score = instance.respect
-        old_behavior_score = instance.behavior
+
+        # --- score adjustment ---
+        # Present is worth 1 point on attendance; respect/participation add
+        # their raw values. (Unchanged formula — just renamed for clarity.
+        # hw_prep / lesson_prog aren't currently factored into score; add
+        # them here if you want them to count.)
+        old_respect_score = instance.respect or 0
+        old_participation_score = instance.behavior or 0
         old_attendance_score = 1 if instance.attendance == 0 else 0
-        old_score = old_respect_score + old_behavior_score + old_attendance_score
+        old_score = old_respect_score + old_participation_score + old_attendance_score
+
         student = instance.student
         student.score -= old_score
+
         respect_score = request.data.get("respect", 0)
-        behavior_score = request.data.get("behavior", 0)
+        participation_score = request.data.get("participation", 0)
         attendance_score = 1 if request.data.get("attendance", 1) == 0 else 0
-        new_score = respect_score + behavior_score + attendance_score
+        new_score = respect_score + participation_score + attendance_score
+
         student.score += new_score
         student.save()
-        if request.data.get('attendance') == 0:
-            instance.comments = request.data.get('comments')
-            instance.behavior = request.data.get('behavior')
+
+        # --- field updates ---
+        if request.data.get('attendance') == 0:  # Present
+            instance.hw_prep = request.data.get('hw_prep')
+            instance.hw_prep_comments = request.data.get('hw_prep_comments')
+            instance.behavior = request.data.get('participation')
             instance.respect = request.data.get('respect')
+            instance.lesson_prog = request.data.get('lesson_prog')
+            instance.lesson_prog_comments = request.data.get('lesson_prog_comments')
+            instance.next_lesson = request.data.get('next_lesson')
+            instance.comments = request.data.get('comments')
             instance.attendance = request.data.get('attendance')
-            instance.save()
-        else:
-            instance.comments = ""
-            instance.respect = None
+        else:  # Absent
+            instance.hw_prep = None
+            instance.hw_prep_comments = ""
             instance.behavior = None
+            instance.respect = None
+            instance.lesson_prog = None
+            instance.lesson_prog_comments = ""
+            instance.next_lesson = ""
+            instance.comments = ""
             instance.attendance = request.data.get('attendance')
-            instance.save()
-        
-        log = instance
-        respect = "Did not meet expectations" if log.respect == 1 else "Meets expectations"
-        behavior = "Needs Attention" if log.behavior == 1 else "Good" if log.behavior == 2 else "Excellent"
-        if log.attendance == 0:
-            log_message = f"A previous report was updated for your child: {log.student.first_name} {log.student.last_name}\n New Details:\nDate: {log.date}\nRespect: {respect}\nBehavior: {behavior}\nAttendance: 'Present' \nComments: {log.comments}"
-        else:
-            log_message = f"A previous report was updated for your child: {log.student.first_name} {log.student.last_name}\n New Details:\nDate: {log.date}\nAttendance: 'Absent'"
-         
-        log = instance
-        student = log.student
-        if student.parents:
-            for parent_id in student.parents:
-                parent = User.objects.get(id=parent_id)
-                if parent.email_notifications:
-                    send_email(parent.email, log_message)
-                
+
+        instance.save()
+
+        notify_parents(instance, verb="updated")
 
         return Response({"id": instance.log_id}, status=status.HTTP_200_OK)
 

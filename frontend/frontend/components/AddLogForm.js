@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import {
   FlatList,
@@ -110,62 +109,97 @@ function OutlineButton({ label, onPress }) {
   );
 }
 
+// Shared 1–3 rating scale labels, used for Homework Prep, Participation, and
+// Lesson Progress.
+const RATING_3_OPTIONS = [
+  { label: 'Needs Attention', value: 1 },
+  { label: 'Good', value: 2 },
+  { label: 'Excellent', value: 3 },
+];
+
+const RESPECT_OPTIONS = [
+  { label: "Doesn't Meet Expectations", value: 1 },
+  { label: 'Meets Expectations', value: 2 },
+];
+
 // ---------------------------------------------------------------------------
 // AddLogForm
 // ---------------------------------------------------------------------------
 export function AddLogForm({ onSubmit, initialData, skipAttendanceStep = false }) {
-    const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(1);
 
-    const [attendance, setAttendance] = useState(
-      initialData?.attendance ?? "Present"
-    );
+  const [attendance, setAttendance] = useState(
+    initialData?.attendance ?? 'Present'
+  );
 
-    const [behavior, setBehavior] = useState(
-      initialData?.behavior ?? 2
-    );
+  const [homeworkPrep, setHomeworkPrep] = useState(
+    initialData?.homeworkPrep ?? 2
+  );
+  const [homeworkPrepComments, setHomeworkPrepComments] = useState(
+    initialData?.homeworkPrepComments ?? ''
+  );
 
-    const [respect, setRespect] = useState(
-      initialData?.respect ?? 2
-    );
+  const [participation, setParticipation] = useState(
+    initialData?.participation ?? 2
+  );
 
-    const [comments, setComments] = useState(
-      initialData?.comments ?? ""
-    );
+  const [respect, setRespect] = useState(
+    initialData?.respect ?? 2
+  );
 
+  const [lessonProgress, setLessonProgress] = useState(
+    initialData?.lessonProgress ?? 2
+  );
+  const [lessonProgressComments, setLessonProgressComments] = useState(
+    initialData?.lessonProgressComments ?? ''
+  );
+
+  const [nextLesson, setNextLesson] = useState(
+    initialData?.nextLesson ?? ''
+  );
+
+  const [additionalComments, setAdditionalComments] = useState(
+    initialData?.additionalComments ?? ''
+  );
 
   const isAbsent = attendance === 'Absent';
-  const canStep2 = behavior !== null && respect !== null && comments !== null;
-
-  function handleNext() {
-    if (currentStep === 1) { isAbsent ? handleSubmit() : setCurrentStep(2); }
-    else if (currentStep === 2 && canStep2) { setCurrentStep(3); }
-  }
+  const TOTAL_STEPS = 3;
 
   function handleBack() {
     if (currentStep === 2 && !skipAttendanceStep) setCurrentStep(1);
-    if (currentStep === 3) setCurrentStep(2);
+    else if (currentStep === 3) setCurrentStep(2);
   }
 
-function handleSubmit() {
-  onSubmit({
-    attendance,
-    behavior,
-    respect,
-    comments: comments.trim(),
-  });
+  function handleSubmit() {
+    onSubmit({
+      attendance,
+      homeworkPrep,
+      homeworkPrepComments: homeworkPrepComments.trim(),
+      participation,
+      respect,
+      lessonProgress,
+      lessonProgressComments: lessonProgressComments.trim(),
+      nextLesson: nextLesson.trim(),
+      additionalComments: additionalComments.trim(),
+    });
 
-  setAttendance("Present");
-  setBehavior(2);
-  setRespect(2);
-  setComments("");
-  setCurrentStep(1);
-}
+    setAttendance('Present');
+    setHomeworkPrep(2);
+    setHomeworkPrepComments('');
+    setParticipation(2);
+    setRespect(2);
+    setLessonProgress(2);
+    setLessonProgressComments('');
+    setNextLesson('');
+    setAdditionalComments('');
+    setCurrentStep(1);
+  }
 
   // Step progress dots — only shown when there are multiple steps to navigate.
   function StepDots() {
     return (
       <View style={s.stepDots}>
-        {[1, 2].map(n => (
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(n => (
           <View
             key={n}
             style={[s.dot, {
@@ -190,91 +224,160 @@ function handleSubmit() {
 
           <SegmentControl
             options={[
-              { label: "Present", value: "Present" },
-              { label: "Absent", value: "Absent" },
+              { label: 'Present', value: 'Present' },
+              { label: 'Absent', value: 'Absent' },
             ]}
             value={attendance}
             onChange={setAttendance}
             theme={theme}
           />
-        <PrimaryButton
-          label={
-            attendance === "Present"
-              ? "Next →"
-              : (initialData ? "Save Changes" : "Submit Log")
-          }
-          onPress={() => {
-            if (attendance === "Present") {
-              setCurrentStep(2);
-            } else {
-              handleSubmit();
+          <PrimaryButton
+            label={
+              attendance === 'Present'
+                ? 'Next →'
+                : (initialData ? 'Save Changes' : 'Submit Log')
             }
-          }}
-        />
+            onPress={() => {
+              if (attendance === 'Present') {
+                setCurrentStep(2);
+              } else {
+                handleSubmit();
+              }
+            }}
+          />
         </View>
       )}
-      {/* ── STEP 2: The rest*/}
+
+      {/* ── STEP 2: Homework Prep, Participation, Respect ── */}
       {currentStep === 2 && (
-      <View>
-        <SectionLabel text="Behavior" />
-
-        <SegmentControl
-          options={[
-            { label: "Needs Attention", value: 1 },
-            { label: "Good", value: 2 },
-            { label: "Excellent", value: 3 },
-          ]}
-          value={behavior}
-          onChange={setBehavior}
-          theme={theme}
-        />
-
-        <SectionLabel text="Respect" />
-
-        <SegmentControl
-          options={[
-            { label: "Doesn't Meet Expectations", value: 1 },
-            { label: "Meets Expectations", value: 2 },
-          ]}
-          value={respect}
-          onChange={setRespect}
-          theme={theme}
-        />
-
-        <SectionLabel text="Comments" />
-
-        <TextInput
-          style={[
-            s.textArea,
-            {
-              backgroundColor: theme.backgroundElement,
-              color: theme.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder="Enter comments..."
-          placeholderTextColor={colors.textMuted}
-          multiline
-          numberOfLines={5}
-          value={comments}
-          onChangeText={setComments}
-        />
-
-        <View style={[s.row, { marginTop: spacing.xl }]}>
-          <OutlineButton
-            label="← Back"
-            onPress={() => setCurrentStep(1)}
+        <View>
+          <SectionLabel text="Homework Preparation" />
+          <SegmentControl
+            options={RATING_3_OPTIONS}
+            value={homeworkPrep}
+            onChange={setHomeworkPrep}
+            theme={theme}
           />
 
-          <View style={{ flex: 2 }}>
-            <PrimaryButton
-              label={initialData ? "Save Changes" : "Submit Log"}
-              onPress={handleSubmit}
-            />
+          <SectionLabel text="Homework Prep Comments" />
+          <TextInput
+            style={[
+              s.textArea,
+              {
+                backgroundColor: theme.backgroundElement,
+                color: theme.text,
+                borderColor: colors.border,
+              },
+            ]}
+            placeholder="Enter comments..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            numberOfLines={3}
+            value={homeworkPrepComments}
+            onChangeText={setHomeworkPrepComments}
+          />
+
+          <SectionLabel text="Participation" />
+          <SegmentControl
+            options={RATING_3_OPTIONS}
+            value={participation}
+            onChange={setParticipation}
+            theme={theme}
+          />
+
+          <SectionLabel text="Respect" />
+          <SegmentControl
+            options={RESPECT_OPTIONS}
+            value={respect}
+            onChange={setRespect}
+            theme={theme}
+          />
+
+          <View style={[s.row, { marginTop: spacing.xl }]}>
+            <OutlineButton label="← Back" onPress={handleBack} />
+            <View style={{ flex: 2 }}>
+              <PrimaryButton label="Next →" onPress={() => setCurrentStep(3)} />
+            </View>
           </View>
         </View>
-      </View>
-    )}
+      )}
+
+      {/* ── STEP 3: Lesson Progress, Next Lesson/Homework, Additional Comments ── */}
+      {currentStep === 3 && (
+        <View>
+          <SectionLabel text="Lesson Progress" />
+          <SegmentControl
+            options={RATING_3_OPTIONS}
+            value={lessonProgress}
+            onChange={setLessonProgress}
+            theme={theme}
+          />
+
+          <SectionLabel text="Lesson Progress Comments" />
+          <TextInput
+            style={[
+              s.textArea,
+              {
+                backgroundColor: theme.backgroundElement,
+                color: theme.text,
+                borderColor: colors.border,
+              },
+            ]}
+            placeholder="Enter comments..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            numberOfLines={3}
+            value={lessonProgressComments}
+            onChangeText={setLessonProgressComments}
+          />
+
+          <SectionLabel text="Next Lesson / Homework" />
+          <TextInput
+            style={[
+              s.textArea,
+              {
+                backgroundColor: theme.backgroundElement,
+                color: theme.text,
+                borderColor: colors.border,
+              },
+            ]}
+            placeholder="Enter next lesson or homework..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            numberOfLines={3}
+            value={nextLesson}
+            onChangeText={setNextLesson}
+          />
+
+          <SectionLabel text="Additional Comments" />
+          <TextInput
+            style={[
+              s.textArea,
+              {
+                backgroundColor: theme.backgroundElement,
+                color: theme.text,
+                borderColor: colors.border,
+              },
+            ]}
+            placeholder="Enter comments..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            numberOfLines={5}
+            value={additionalComments}
+            onChangeText={setAdditionalComments}
+          />
+
+          <View style={[s.row, { marginTop: spacing.xl }]}>
+            <OutlineButton label="← Back" onPress={handleBack} />
+            <View style={{ flex: 2 }}>
+              <PrimaryButton
+                label={initialData ? 'Save Changes' : 'Submit Log'}
+                onPress={handleSubmit}
+              />
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -326,11 +429,11 @@ const s = StyleSheet.create({
   },
   behaviorLabel: { fontSize: 16, fontWeight: '700' },
 
-  // Assignments text area
+  // Text areas
   textArea: {
     borderRadius: radii.lg,
     padding: spacing.md,
-    minHeight: 120,
+    minHeight: 80,
     textAlignVertical: 'top',
     fontSize: 15,
     borderWidth: 1,

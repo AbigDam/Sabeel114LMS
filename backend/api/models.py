@@ -40,7 +40,13 @@ class Log(models.Model):
     behavior = models.IntegerField(default = 3,null=True, blank=True) #1 - Needs Attention   2 - Good   3 - Excellent
     attendance = models.IntegerField(default = 0) #0 - Present   1-Absent 
 
+    hw_prep = models.IntegerField(default = 0,null=True, blank=True) #0 - Present   1-Absent 
+    lesson_prog = models.IntegerField(default = 0,null=True, blank=True) #0 - Present   1-Absent 
+    lesson_prog_comments = models.CharField(max_length=1000, null= True, blank= True)
+    hw_prep_comments = models.CharField(max_length=1000, null= True, blank= True)
 
+    comments = models.CharField(max_length=1000, null= True, blank= True)
+    next_lesson = models.CharField(max_length=1000, null= True, blank= True)
 
 class Report_Card(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="report_card")

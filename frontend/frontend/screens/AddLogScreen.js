@@ -27,7 +27,9 @@ const ATTENDANCE_LABELS = {
   2: 'Excused Absence',
 };
 
-const BEHAVIOR_LABELS = {
+// Shared 1–3 rating labels — used for Homework Prep, Participation, and
+// Lesson Progress.
+const RATING_LABELS = {
   1: 'Needs Attention',
   2: 'Good',
   3: 'Excellent',
@@ -51,12 +53,16 @@ function attendanceToCode(value) {
   return 0;
 }
 
+function isAbsentLog(log) {
+  return log?.attendance === 1 || log?.attendance === 2 ||
+    log?.attendance === 'Absent' || log?.attendance === 'Excused Absence';
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 function LogDetailView({ log, viewHistory }) {
-  const isAbsent = log.attendance === 1 || log.attendance === 2 ||
-    log.attendance === 'Absent' || log.attendance === 'Excused Absence';
+  const absent = isAbsentLog(log);
 
   return (
     <View>
@@ -69,26 +75,43 @@ function LogDetailView({ log, viewHistory }) {
         <DetailRow
           label="Attendance"
           value={ATTENDANCE_LABELS[log.attendance] ?? log.attendance}
-          bold={isAbsent}
+          bold={absent}
         />
-        {!isAbsent && (
+        {!absent && (
           <>
             <DetailRow
-              label="Behavior"
-              value={BEHAVIOR_LABELS[log.behavior] ?? log.behavior}
+              label="Homework Preparation"
+              value={RATING_LABELS[log.homeworkPrep] ?? log.homeworkPrep}
             />
+            {log.homeworkPrepComments ? (
+              <CommentRow label="Homework Prep Comments" value={log.homeworkPrepComments} />
+            ) : null}
+
+            <DetailRow
+              label="Participation"
+              value={RATING_LABELS[log.participation] ?? log.participation}
+            />
+
             <DetailRow
               label="Respect"
               value={RESPECT_LABELS[log.respect] ?? log.respect}
               valueColor={log.respect === 1 ? colors.danger : undefined}
             />
-            {log.comments ? (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Comments</Text>
-                <View style={styles.assignmentBox}>
-                  <Text style={styles.assignmentText}>{log.comments}</Text>
-                </View>
-              </View>
+
+            <DetailRow
+              label="Lesson Progress"
+              value={RATING_LABELS[log.lessonProgress] ?? log.lessonProgress}
+            />
+            {log.lessonProgressComments ? (
+              <CommentRow label="Lesson Progress Comments" value={log.lessonProgressComments} />
+            ) : null}
+
+            {log.nextLesson ? (
+              <CommentRow label="Next Lesson / Homework" value={log.nextLesson} />
+            ) : null}
+
+            {log.additionalComments ? (
+              <CommentRow label="Additional Comments" value={log.additionalComments} />
             ) : null}
           </>
         )}
@@ -117,6 +140,17 @@ function DetailRow({ label, value, bold = false, valueColor }) {
   );
 }
 
+function CommentRow({ label, value }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <View style={styles.assignmentBox}>
+        <Text style={styles.assignmentText}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
@@ -134,10 +168,7 @@ export default function AddLogScreen({ navigation, route }) {
   const todayLog = getTodayLog(studentLogs);
   const editingLog = editingLogId ? studentLogs.find(l => l.id === editingLogId) ?? null : null;
 
-  const isTodayAbsent = todayLog && (
-    todayLog.attendance === 1 || todayLog.attendance === 2 ||
-    todayLog.attendance === 'Absent' || todayLog.attendance === 'Excused Absence'
-  );
+  const isTodayAbsent = isAbsentLog(todayLog);
 
   // Show the form when: no log today, OR teacher clicked Edit on a history row, OR teacher clicked "Add Log".
   const showForm = !todayLog || !!editingLogId || addingLog;
@@ -164,9 +195,14 @@ export default function AddLogScreen({ navigation, route }) {
       class_id: course.id,
       date: TODAY,
       attendance: attendanceToCode(newLog.attendance),
-      behavior: newLog.behavior,
+      homework_prep: newLog.homeworkPrep,
+      homework_prep_comments: newLog.homeworkPrepComments ?? '',
+      participation: newLog.participation,
       respect: newLog.respect,
-      comments: newLog.comments ?? '',
+      lesson_progress: newLog.lessonProgress,
+      lesson_progress_comments: newLog.lessonProgressComments ?? '',
+      next_lesson: newLog.nextLesson ?? '',
+      additional_comments: newLog.additionalComments ?? '',
     };
 
     try {
@@ -188,9 +224,14 @@ export default function AddLogScreen({ navigation, route }) {
       student_id: selectedId,
       class_id: course.id,
       attendance: attendanceToCode(updatedFields.attendance),
-      behavior: updatedFields.behavior,
+      homework_prep: updatedFields.homeworkPrep,
+      homework_prep_comments: updatedFields.homeworkPrepComments ?? '',
+      participation: updatedFields.participation,
       respect: updatedFields.respect,
-      comments: updatedFields.comments ?? '',
+      lesson_progress: updatedFields.lessonProgress,
+      lesson_progress_comments: updatedFields.lessonProgressComments ?? '',
+      next_lesson: updatedFields.nextLesson ?? '',
+      additional_comments: updatedFields.additionalComments ?? '',
     };
 
     try {
@@ -307,9 +348,14 @@ export default function AddLogScreen({ navigation, route }) {
               skipAttendanceStep={!!todayLog && addingLog}
               initialData={editingLog ? {
                 attendance: ATTENDANCE_LABELS[editingLog.attendance] ?? editingLog.attendance ?? 'Present',
-                behavior:   editingLog.behavior,
-                respect:    editingLog.respect,
-                comments:   editingLog.comments,
+                homeworkPrep:            editingLog.homeworkPrep,
+                homeworkPrepComments:    editingLog.homeworkPrepComments,
+                participation:           editingLog.participation,
+                respect:                 editingLog.respect,
+                lessonProgress:          editingLog.lessonProgress,
+                lessonProgressComments:  editingLog.lessonProgressComments,
+                nextLesson:              editingLog.nextLesson,
+                additionalComments:      editingLog.additionalComments,
               } : undefined}
             />
           ) : (
@@ -365,8 +411,7 @@ export default function AddLogScreen({ navigation, route }) {
                 <Text style={styles.emptyHistoryText}>No logs found for this student.</Text>
               ) : (
                 studentLogs.map((log) => {
-                  const isAbsent = log.attendance === 1 || log.attendance === 2 ||
-                    log.attendance === 'Absent' || log.attendance === 'Excused Absence';
+                  const absent = isAbsentLog(log);
 
                   return (
                     <View key={log.id} style={styles.historyCard}>
@@ -375,7 +420,7 @@ export default function AddLogScreen({ navigation, route }) {
                           {log.date} ({ATTENDANCE_LABELS[log.attendance] ?? log.attendance})
                         </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                          {!isAbsent && (
+                          {!absent && (
                             <View style={[
                               styles.historyBadge,
                               { backgroundColor: log.respect === 1 ? colors.dangerBg : colors.successBg },
@@ -413,14 +458,40 @@ export default function AddLogScreen({ navigation, route }) {
                         </View>
                       </View>
 
-                      {!isAbsent && (
+                      {!absent && (
                         <View style={styles.historyCardBody}>
                           <Text style={styles.historyMainText}>
-                            Behavior: {BEHAVIOR_LABELS[log.behavior] ?? log.behavior}
+                            Homework Prep: {RATING_LABELS[log.homeworkPrep] ?? log.homeworkPrep}
                           </Text>
-                          {log.comments ? (
+                          <Text style={styles.historyMainText}>
+                            Participation: {RATING_LABELS[log.participation] ?? log.participation}
+                          </Text>
+                          <Text style={styles.historyMainText}>
+                            Lesson Progress: {RATING_LABELS[log.lessonProgress] ?? log.lessonProgress}
+                          </Text>
+
+                          {log.homeworkPrepComments ? (
                             <View style={styles.historyNotesBox}>
-                              <Text style={styles.historyNotesText}>{log.comments}</Text>
+                              <Text style={styles.historyNotesLabel}>Homework Prep Comments</Text>
+                              <Text style={styles.historyNotesText}>{log.homeworkPrepComments}</Text>
+                            </View>
+                          ) : null}
+                          {log.lessonProgressComments ? (
+                            <View style={styles.historyNotesBox}>
+                              <Text style={styles.historyNotesLabel}>Lesson Progress Comments</Text>
+                              <Text style={styles.historyNotesText}>{log.lessonProgressComments}</Text>
+                            </View>
+                          ) : null}
+                          {log.nextLesson ? (
+                            <View style={styles.historyNotesBox}>
+                              <Text style={styles.historyNotesLabel}>Next Lesson / Homework</Text>
+                              <Text style={styles.historyNotesText}>{log.nextLesson}</Text>
+                            </View>
+                          ) : null}
+                          {log.additionalComments ? (
+                            <View style={styles.historyNotesBox}>
+                              <Text style={styles.historyNotesLabel}>Additional Comments</Text>
+                              <Text style={styles.historyNotesText}>{log.additionalComments}</Text>
                             </View>
                           ) : null}
                         </View>
@@ -695,6 +766,7 @@ const styles = StyleSheet.create({
   },
   historyCardBody: {
     marginTop: spacing.xs,
+    gap: spacing.xs,
   },
   historyMainText: {
     fontFamily: fontFamilies.bodySemibold,
@@ -708,6 +780,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+  },
+  historyNotesLabel: {
+    fontFamily: fontFamilies.bodyExtraBold,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: colors.textMuted,
+    marginBottom: 2,
   },
   historyNotesText: {
     fontFamily: fontFamilies.bodyRegular,
