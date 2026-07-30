@@ -255,6 +255,14 @@ class CurrentUser(APIView):
             "email_notifications": request.user.email_notifications,
         })
 
+class CurrentUserDetailsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        users = User.objects.filter(role__in=[0, 1, 2]).order_by("last_name", "first_name")
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
 class AnnouncementListView(ListAPIView):
     queryset = Announcement.objects.all().order_by("-date")
     serializer_class = AnnouncementSerializer
