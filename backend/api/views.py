@@ -30,7 +30,7 @@ class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
 def send_email(email, message):
-
+    print(f"Sending message ({message} to {email}")
     configuration = sib_api_v3_sdk.Configuration()
     configuration.api_key["api-key"] = os.environ.get("BREVO_API_KEY")
 
@@ -52,10 +52,8 @@ def send_email(email, message):
         text_content=message
     )
 
-    try:
-        api_instance.send_transac_email(send_smtp_email)
-    except ApiException as e:
-        print("Email error:", e)
+    api_instance.send_transac_email(send_smtp_email)
+
 
 LOG_TYPE_MAP = {
     0: 'reading',
@@ -122,34 +120,41 @@ class GetChildren(APIView):
         serializer = StudentSerializer(children, many=True)
         return Response(serializer.data)
 
-def get_start_date(given_date):
-    if given_date.day == 1:
-        # Subtracting 1 day from the 1st always lands on the last day of the previous month
-        previous_month_end = given_date - timedelta(days=1)
-        return previous_month_end.replace(day=1)
-    return given_date.replace(day=1)
-
 
 class LeaderboardListView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
         date = request.query_params.get('date')
         date = parse_date(date)
-        thirty_days_ago = get_start_date(date)
+        start_date = get_start_date(date)
         students = list(User.objects.filter(role=2))
         for student in students:
-            logs = Log.objects.filter(student=student, date__lte=date, date__gte=thirty_days_ago)
-            student.score_at_date = sum(
-                log.respect + log.behavior + (1 if log.attendance == 0 else 0) for log in logs)
+            logs = Log.objects.filter(student=student, date__lte=date, date__gte=start_date)
+            student.score_at_date = compute_score_at_date(student, date)
         students.sort(key=lambda s: s.score_at_date, reverse=True)
         serializer = LeaderboardSerializer(students, many=True)
         return Response(serializer.data)
 
-def compute_score_at_date(student, as_of_date):
-    thirty_days_ago = get_start_date(as_of_date)
-    logs = Log.objects.filter(student=student, date__lte=as_of_date, date__gte=thirty_days_ago)
+def get_start_date(given_date):
+    return given_date.replace(day=1)
+
+def compute_score_at_date(student, given_date):
+    start_date = get_start_date(given_date)
+
+    logs = Log.objects.filter(
+        student=student,
+        date__gte=start_date,
+        date__lte=given_date,
+    )
+
     return sum(
-        log.respect + log.behavior + (1 if log.attendance == 0 else 0)
+        calculate_score(
+            log.respect,
+            log.behavior,
+            log.hw_prep,
+            log.lesson_prog,
+            log.attendance,
+        )
         for log in logs
     )
 
@@ -497,6 +502,7 @@ def build_log_message(log, verb):
 
 
 def notify_parents(log, verb):
+    print("notifying parents!")
     student = log.student
     if student.parents:
         for parent_id in student.parents:
@@ -508,6 +514,18 @@ def notify_parents(log, verb):
 # ---------------------------------------------------------------------------
 # Create
 # ---------------------------------------------------------------------------
+def calculate_score(respect, participation, hw_prep, lesson_prog, attendance):
+    def shifted(value):
+        return (value - 1) if value is not None else 0
+
+    respect_score = shifted(respect)
+    participation_score = shifted(participation)
+    hw_prep_score = shifted(hw_prep)
+    lesson_prog_score = shifted(lesson_prog)
+    attendance_score = 1 if attendance == 0 else 0
+
+    return respect_score + participation_score + hw_prep_score + lesson_prog_score + attendance_score
+
 class CreateLogView(generics.CreateAPIView):
     serializer_class = CreateLogSerializer
 
@@ -515,7 +533,7 @@ class CreateLogView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         log = serializer.save()
-
+    
         notify_parents(log, verb="created")
 
         return Response({"id": log.log_id}, status=status.HTTP_201_CREATED)
@@ -536,23 +554,24 @@ class UpdateLogView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        # --- score adjustment ---
-        # Present is worth 1 point on attendance; respect/participation add
-        # their raw values. (Unchanged formula — just renamed for clarity.
-        # hw_prep / lesson_prog aren't currently factored into score; add
-        # them here if you want them to count.)
-        old_respect_score = instance.respect or 0
-        old_participation_score = instance.behavior or 0
-        old_attendance_score = 1 if instance.attendance == 0 else 0
-        old_score = old_respect_score + old_participation_score + old_attendance_score
+        old_score = calculate_score(
+            instance.respect,
+            instance.behavior,
+            instance.hw_prep,
+            instance.lesson_prog,
+            instance.attendance,
+        )
 
         student = instance.student
         student.score -= old_score
 
-        respect_score = request.data.get("respect", 0)
-        participation_score = request.data.get("participation", 0)
-        attendance_score = 1 if request.data.get("attendance", 1) == 0 else 0
-        new_score = respect_score + participation_score + attendance_score
+        new_score = calculate_score(
+            request.data.get("respect", 0),
+            request.data.get("participation", 0),
+            request.data.get("hw_prep", 0),
+            request.data.get("lesson_prog", 0),
+            request.data.get("attendance", 1),
+        )
 
         student.score += new_score
         student.save()
@@ -592,15 +611,20 @@ class DeleteLogView(generics.GenericAPIView):
     def get_object(self):
         return get_object_or_404(
             Log,
-            log_id = self.request.data.get('log_id')
+            log_id=self.request.data.get('log_id'),
         )
 
     def post(self, request, *args, **kwargs):
         instance = self.get_object()
-        old_respect_score = instance.respect if instance.respect else 0
-        old_behavior_score = instance.behavior if instance.behavior else 0
-        old_attendance_score = 1 if instance.attendance == 0 else 0
-        old_score = old_respect_score + old_behavior_score + old_attendance_score
+
+        old_score = calculate_score(
+            instance.respect,
+            instance.behavior,
+            instance.hw_prep,
+            instance.lesson_prog,
+            instance.attendance,
+        )
+
         student = instance.student
         student.score -= old_score
         student.save()

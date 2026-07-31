@@ -40,8 +40,8 @@ class Log(models.Model):
     behavior = models.IntegerField(default = 3,null=True, blank=True) #1 - Needs Attention   2 - Good   3 - Excellent
     attendance = models.IntegerField(default = 0) #0 - Present   1-Absent 
 
-    hw_prep = models.IntegerField(default = 0,null=True, blank=True) #0 - Present   1-Absent 
-    lesson_prog = models.IntegerField(default = 0,null=True, blank=True) #0 - Present   1-Absent 
+    hw_prep = models.IntegerField(default = 0,null=True, blank=True) #1 - Needs Attention   2 - Good   3 - Excellent
+    lesson_prog = models.IntegerField(default = 0,null=True, blank=True)  #1 - Needs Attention   2 - Good   3 - Excellent
     lesson_prog_comments = models.CharField(max_length=1000, null= True, blank= True)
     hw_prep_comments = models.CharField(max_length=1000, null= True, blank= True)
 

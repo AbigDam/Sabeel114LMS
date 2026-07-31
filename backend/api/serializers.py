@@ -165,21 +165,31 @@ class CreateLogSerializer(serializers.Serializer):
     date = serializers.DateField(default=datetime.date.today)
     respect = serializers.IntegerField(min_value=1, max_value=2, default=2)
     behavior = serializers.IntegerField(min_value=1, max_value=3, default=3)
-    attendance = serializers.IntegerField(min_value=0, max_value=1, default=0) #0 - Present   1-Absent 
-
+    hw_prep = serializers.IntegerField(min_value=1, max_value=3, required=False, allow_null=True, default=None)
+    hw_prep_comments = serializers.CharField(required=False, allow_blank=True, default="")
+    lesson_prog = serializers.IntegerField(min_value=1, max_value=3, required=False, allow_null=True, default=None)
+    lesson_prog_comments = serializers.CharField(required=False, allow_blank=True, default="")
+    next_lesson = serializers.CharField(required=False, allow_blank=True, default="")
+    attendance = serializers.IntegerField(min_value=0, max_value=1, default=0)  # 0 - Present   1 - Absent
 
     def create(self, validated_data):
         student = User.objects.get(id=validated_data["student_id"])
         classroom = Classroom.objects.get(class_id=validated_data["class_id"])
-        respect_score = validated_data.get("respect", 0)
-        behavior_score = validated_data.get("behavior", 0)
-        attendance_score = 1 if validated_data.get("attendance", 1) == 0 else 0
-        score = respect_score + behavior_score + attendance_score
+
+        score = calculate_score(
+            validated_data.get("respect"),
+            validated_data.get("behavior"),
+            validated_data.get("hw_prep"),
+            validated_data.get("lesson_prog"),
+            validated_data.get("attendance", 1),
+        )
+
         if student.score:
             student.score += score
         else:
             student.score = score
         student.save()
+
         log = Log.objects.create(
             student=student,
             logged_by=classroom,
@@ -187,6 +197,11 @@ class CreateLogSerializer(serializers.Serializer):
             date=validated_data["date"],
             respect=validated_data.get("respect"),
             behavior=validated_data.get("behavior"),
+            hw_prep=validated_data.get("hw_prep"),
+            hw_prep_comments=validated_data.get("hw_prep_comments", ""),
+            lesson_prog=validated_data.get("lesson_prog"),
+            lesson_prog_comments=validated_data.get("lesson_prog_comments", ""),
+            next_lesson=validated_data.get("next_lesson", ""),
             attendance=validated_data.get("attendance", 0),
         )
         return log
@@ -353,3 +368,15 @@ class PerformanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Log
         fields = ["respect", "behavior", "attendance", "date"]
+
+def calculate_score(respect, participation, hw_prep, lesson_prog, attendance):
+    def shifted(value):
+        return (value - 1) if value is not None else 0
+
+    respect_score = shifted(respect)
+    participation_score = shifted(participation)
+    hw_prep_score = shifted(hw_prep)
+    lesson_prog_score = shifted(lesson_prog)
+    attendance_score = 1 if attendance == 0 else 0
+
+    return respect_score + participation_score + hw_prep_score + lesson_prog_score + attendance_score
