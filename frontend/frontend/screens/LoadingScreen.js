@@ -1,15 +1,3 @@
-// screens/LoadingScreen.js
-// -----------------------------------------------------------------------------
-// App-wide loading state (used while checking auth on boot, and as a fallback
-// inside AppStack while user/role data is being fetched).
-//
-// This component is purely presentational — it does NOT decide when to stop
-// showing itself. Whatever renders <LoadingScreen /> is responsible for
-// swapping it out once its async work finishes (see App.js for the pattern:
-// try/catch/finally with setLoading(false) in finally, guaranteed to run
-// whether the fetch succeeds or fails).
-// -----------------------------------------------------------------------------
-
 import React from 'react';
 import { View, ActivityIndicator, Text, Image, StyleSheet } from 'react-native';
 

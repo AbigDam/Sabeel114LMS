@@ -4,11 +4,13 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -127,20 +129,39 @@ function ClassRow({ name, onPress }) {
 // password" — show that plainly instead of a maskable secret.
 function PasswordRow({ password }) {
   const [visible, setVisible] = useState(false);
+  const [copied, setCopied] = useState(false);
   const hasPassword = password && password !== 'No password';
 
   if (!hasPassword) {
     return <Text style={styles.valueTextMuted}>No password</Text>;
   }
 
+  const handleCopy = async () => {
+    await Clipboard.setStringAsync(password);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
-    <TouchableOpacity style={styles.linkRow} onPress={() => setVisible(v => !v)} activeOpacity={0.6}>
-      <Text style={styles.passwordText}>{visible ? password : '••••••••'}</Text>
-      <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textMuted} />
-    </TouchableOpacity>
+    <View style={styles.passwordRow}>
+      <TouchableOpacity
+        style={styles.passwordTextBtn}
+        onPress={() => setVisible(v => !v)}
+        activeOpacity={0.6}
+      >
+        <Text style={styles.passwordText}>{visible ? password : '••••••••'}</Text>
+        <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textMuted} />
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={handleCopy} hitSlop={10} style={styles.copyBtn} accessibilityLabel="Copy password">
+        <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? (colors.success ?? '#2E8B57') : colors.primary} />
+        <Text style={[styles.copyBtnText, copied && styles.copyBtnTextCopied]}>
+          {copied ? 'Copied' : 'Copy'}
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 }
-
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
@@ -273,7 +294,7 @@ export default function UserDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : (
-        <View style={styles.body}>
+        <ScrollView style={styles.body}>
           {/* Identity header */}
           <View style={styles.identityRow}>
             <View style={styles.avatarLg}>
@@ -416,7 +437,7 @@ export default function UserDetailScreen({ route, navigation }) {
               </>
             )}
           </View>
-        </View>
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -452,8 +473,12 @@ const styles = StyleSheet.create({
   },
 
   body: {
-    padding: spacing.md,
-  },
+      flex: 1,
+    },
+    bodyContent: {
+      padding: spacing.md,
+      paddingBottom: spacing.xl * 2,
+    },
 
   // Identity
   identityRow: {
@@ -567,12 +592,38 @@ const styles = StyleSheet.create({
   },
 
   // Password
+// Password
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+  },
+  passwordTextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexShrink: 1,
+  },
   passwordText: {
     fontSize: 15,
     color: colors.text,
     letterSpacing: 1,
   },
-
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: spacing.sm,
+  },
+  copyBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  copyBtnTextCopied: {
+    color: colors.success ?? '#2E8B57',
+  },
   // Badge
   badge: {
     alignSelf: 'flex-start',

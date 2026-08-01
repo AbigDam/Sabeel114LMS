@@ -1,23 +1,5 @@
-// screens/LoginScreen.js
-// -----------------------------------------------------------------------------
-// Al-Hidaya Admin login (Phase II - Backend Integration).
-//
-// Behaviour:
-//   - Email + password (password masked by default, with show/hide toggle)
-//   - "Remember me" stores ONLY the email in AsyncStorage (never the password)
-//   - Forgot password is a placeholder
-//   - Validation: valid email + a password meeting the security policy
-//     (8+ chars, upper, lower, number, special — see constants/validation.js)
-//   - On success it navigates to the Dashboard (mock — no credentials checked)
-//   - Link to Signup
-//
-// SECURITY NOTE: the password is never persisted anywhere. With the real Django
-// backend, send it once over HTTPS and store only the returned token (in
-// SecureStore, NOT plain AsyncStorage).
-// -----------------------------------------------------------------------------
-
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -29,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api.js'; 
 
 const REMEMBERED_USERNAME_KEY = 'rememberedUsername';
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginScreen({ navigation }) {
   const { setAuthenticated } = useAuth();
@@ -37,87 +20,145 @@ export default function LoginScreen({ navigation }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Forgot-password panel state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+
   // On mount, pre-fill a previously remembered email (if any).
-useEffect(() => {
-  (async () => {
-    try {
-      const saved = await AsyncStorage.getItem(
-        REMEMBERED_USERNAME_KEY
-      );
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(
+          REMEMBERED_USERNAME_KEY
+        );
 
-      if (saved) {
-        setUsername(saved);
-        setRememberMe(true);
+        if (saved) {
+          setUsername(saved);
+          setRememberMe(true);
+        }
+      } catch (e) {
+        console.warn('Could not read remembered username:', e);
       }
-    } catch (e) {
-      console.warn('Could not read remembered username:', e);
-    }
-  })();
-}, []);
-function validate() {
-  const next = {};
+    })();
+  }, []);
 
-  if (!username.trim()) {
-    next.username = 'Username is required.';
-  }
+  function validate() {
+    const next = {};
 
-  const pwError = validatePassword(password);
-
-  if (pwError) {
-    next.password = pwError;
-  }
-
-  return next;
-}
-
-async function handleLogin() {
-  const validationErrors = validate();
-
-  setErrors(validationErrors);
-
-  if (Object.keys(validationErrors).length > 0) {
-    return;
-  }
-
-  const trimmedUsername = username.trim();
-
-  try {
-    if (rememberMe) {
-      await AsyncStorage.setItem(
-        REMEMBERED_USERNAME_KEY,
-        trimmedUsername
-      );
-    } else {
-      await AsyncStorage.removeItem(
-        REMEMBERED_USERNAME_KEY
-      );
+    if (!username.trim()) {
+      next.username = 'Username is required.';
     }
 
-    // Goes through api.js so the baseURL/interceptors are consistent with
-    // every other request — this is the call that gets you both tokens.
-    const response = await api.post('/login/', { username: trimmedUsername, password });
+    const pwError = validatePassword(password);
 
-    await AsyncStorage.setItem('authToken', response.data.access);
-    await AsyncStorage.setItem('refreshToken', response.data.refresh);
-    // Controls whether the session survives an app restart — see App.js checkAuth().
-    await AsyncStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
-    setAuthenticated(true);
+    if (pwError) {
+      next.password = pwError;
+    }
 
-  } catch (error) {
-    console.error(error);
-
-    setErrors({
-      password:
-        error?.response?.data?.error ||
-        error?.response?.data?.message ||
-        'Invalid credentials',
-    });
+    return next;
   }
-}
 
-  function handleForgotPassword() {
-    // Placeholder — reset flow (Django password reset) comes later.
-    console.log('TODO: Forgot password flow.');
+  async function handleLogin() {
+    const validationErrors = validate();
+
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    const trimmedUsername = username.trim();
+
+    try {
+      if (rememberMe) {
+        await AsyncStorage.setItem(
+          REMEMBERED_USERNAME_KEY,
+          trimmedUsername
+        );
+      } else {
+        await AsyncStorage.removeItem(
+          REMEMBERED_USERNAME_KEY
+        );
+      }
+
+      // Goes through api.js so the baseURL/interceptors are consistent with
+      // every other request — this is the call that gets you both tokens.
+      const response = await api.post('/login/', { username: trimmedUsername, password });
+
+      await AsyncStorage.setItem('authToken', response.data.access);
+      await AsyncStorage.setItem('refreshToken', response.data.refresh);
+      // Controls whether the session survives an app restart — see App.js checkAuth().
+      await AsyncStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
+      setAuthenticated(true);
+
+    } catch (error) {
+      console.error(error);
+
+      setErrors({
+        password:
+          error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          'Invalid credentials',
+      });
+    }
+  }
+
+  // Toggle the inline forgot-password panel open/closed.
+  function handleForgotPasswordToggle() {
+    setShowForgotPassword((v) => !v);
+    setForgotError('');
+    setForgotMessage('');
+  }
+
+  // Submit the email from the forgot-password panel.
+  async function handleForgotPasswordSubmit() {
+    const trimmedEmail = forgotEmail.trim();
+
+    setForgotMessage('');
+
+    if (!trimmedEmail) {
+      setForgotError('Please enter your email address.');
+      return;
+    }
+
+    if (!EMAIL_RE.test(trimmedEmail)) {
+      setForgotError('Please enter a valid email address.');
+      return;
+    }
+
+    setForgotError('');
+    setForgotLoading(true);
+
+    try {
+      // Expected backend contract: 200 -> { found: true }  (email sent)
+      //                             200 -> { found: false } (no account) — OR
+      //                             404 -> no account with that email.
+      // Adjust the parsing below once the real Django endpoint is wired up.
+      const response = await api.post('/forgot-password/', { email: trimmedEmail });
+
+      const found = response?.data?.found ?? true;
+
+      if (found) {
+        setForgotMessage('If an account exists for that email, a new password has been sent to it.');
+      } else {
+        setForgotMessage('No account was found for that email address.');
+      }
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        setForgotMessage('No account was found for that email address.');
+      } else {
+        setForgotError(
+          error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          'Something went wrong. Please try again.'
+        );
+      }
+    } finally {
+      setForgotLoading(false);
+    }
   }
 
   return (
@@ -163,10 +204,56 @@ async function handleLogin() {
           <Text style={styles.checkboxLabel}>Remember me</Text>
         </Pressable>
 
-        <Pressable onPress={handleForgotPassword} hitSlop={8}>
+        <Pressable onPress={handleForgotPasswordToggle} hitSlop={8}>
           <Text style={styles.link}>Forgot password?</Text>
         </Pressable>
       </View>
+
+      {/* Inline forgot-password panel */}
+      {showForgotPassword && (
+        <View style={styles.forgotPanel}>
+          <Text style={styles.forgotLabel}>
+            Enter your account email and we'll send a new password.
+          </Text>
+
+          <TextField
+            label="Email"
+            iconName="mail-outline"
+            value={forgotEmail}
+            onChangeText={(text) => {
+              setForgotEmail(text);
+              if (forgotError) setForgotError('');
+              if (forgotMessage) setForgotMessage('');
+            }}
+            placeholder="example@email.com"
+            error={forgotError}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            returnKeyType="done"
+            onSubmitEditing={handleForgotPasswordSubmit}
+          />
+
+          {forgotMessage ? (
+            <Text style={styles.forgotMessage}>{forgotMessage}</Text>
+          ) : null}
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.forgotBtn,
+              pressed && styles.primaryBtnPressed,
+              forgotLoading && styles.forgotBtnDisabled,
+            ]}
+            onPress={handleForgotPasswordSubmit}
+            disabled={forgotLoading}
+          >
+            {forgotLoading ? (
+              <ActivityIndicator color={colors.textOnPrimary} />
+            ) : (
+              <Text style={styles.primaryBtnText}>Send new password</Text>
+            )}
+          </Pressable>
+        </View>
+      )}
 
       <Pressable
         style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}
@@ -217,6 +304,33 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
   checkboxLabel: { ...type.bodyMedium, color: colors.text },
   link: { ...type.bodyBold, color: colors.primary },
+  forgotPanel: {
+    backgroundColor: colors.surfaceMuted || '#F5F5F5',
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginTop: -spacing.md,
+    marginBottom: spacing.xl,
+  },
+  forgotLabel: {
+    ...type.body,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  forgotMessage: {
+    ...type.bodyMedium,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  forgotBtn: {
+    flexDirection: 'row',
+    backgroundColor: colors.primary,
+    height: 44,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  forgotBtnDisabled: { opacity: 0.7 },
   primaryBtn: {
     flexDirection: 'row',
     backgroundColor: colors.primary,

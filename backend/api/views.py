@@ -21,6 +21,7 @@ from django.db import transaction
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 from rest_framework_simplejwt.views import TokenObtainPairView
+import string
 from .serializers import MyTokenObtainPairSerializer
 
 User = get_user_model()
@@ -54,6 +55,50 @@ def send_email(email, message):
 
     api_instance.send_transac_email(send_smtp_email)
 
+def send_password_reset_email(email, message):
+    print(f"Sending message ({message} to {email}")
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key["api-key"] = os.environ.get("BREVO_API_KEY")
+
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+        sib_api_v3_sdk.ApiClient(configuration)
+    )
+
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=[
+            {
+                "email": email
+            }
+        ],
+        sender={
+            "email": "sabeel114@yahoo.com",
+            "name": "Sabeel LMS"
+        },
+        subject="Password Reset Request",
+        text_content=message
+    )
+
+    api_instance.send_transac_email(send_smtp_email)
+
+class ForgotPasswordView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+        new_password = generate_temp_password()
+        user.set_password(new_password)
+        user.temporary_password = new_password
+        user.save()
+
+        send_password_reset_email(user.email, f"Someone has requested a password reset for your account. Your new temporary password is: {new_password}. You can login with this password and change it to something more memorable.")
+
+        return Response({"message": "A new temporary password has been sent to your email."}, status=status.HTTP_200_OK)
 
 LOG_TYPE_MAP = {
     0: 'reading',
@@ -96,12 +141,17 @@ class GetWeeklyLogsView(APIView):
                 status=400,
             )
 
-        student = get_object_or_404(User, id=student_id, role=2)
+        end_date = start_date + timedelta(days=6)
+        student = get_object_or_404(User, id=student_id)
 
         logs = (
             Log.objects
-            .filter(student=student, date__gte=start_date)
-            .order_by("date")[:7]
+            .filter(
+                student=student,
+                date__gte=start_date,
+                date__lte=end_date,
+            )
+            .order_by("date")
         )
 
         serializer = LogSerializer(logs, many=True)
@@ -696,7 +746,7 @@ def _find_or_create_account(email, full_name, role, created_accounts, gender):
             return existing
 
     username = _generate_unique_username(first_name, last_name)
-    password = secrets.token_urlsafe(9)
+    password = generate_temp_password()
 
     user = User.objects.create_user(
         username=username,
@@ -936,3 +986,42 @@ class CheckExistingAccounts(APIView):
 
         return JsonResponse({"results": results})
 
+
+def generate_temp_password(length: int = 12) -> str:
+    """
+    Generate a random password that satisfies the policy:
+    - at least 9 characters (default 12 for a bit of headroom)
+    - at least one uppercase letter
+    - at least one lowercase letter
+    - at least one digit
+    - at least one special character
+    """
+    if length < 9:
+        raise ValueError("length must be at least 9 to satisfy the password policy")
+
+    lowercase = string.ascii_lowercase
+    uppercase = string.ascii_uppercase
+    digits = string.digits
+    # Keep this in sync with whatever your policy/regex actually allows
+    special = "!@#$%^&*()-_=+[]{}?"
+
+    all_chars = lowercase + uppercase + digits + special
+
+    # Guarantee one of each required class first
+    password_chars = [
+        secrets.choice(lowercase),
+        secrets.choice(uppercase),
+        secrets.choice(digits),
+        secrets.choice(special),
+    ]
+
+    # Fill the rest randomly from the full pool
+    password_chars += [secrets.choice(all_chars) for _ in range(length - len(password_chars))]
+
+    # Shuffle so the guaranteed chars aren't always in the same position
+    # (secrets doesn't have shuffle, so use a Fisher-Yates with secrets.randbelow)
+    for i in range(len(password_chars) - 1, 0, -1):
+        j = secrets.randbelow(i + 1)
+        password_chars[i], password_chars[j] = password_chars[j], password_chars[i]
+
+    return "".join(password_chars)

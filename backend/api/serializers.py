@@ -26,13 +26,6 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError('Current password is incorrect.')
         return value
  
-    def validate_new_password(self, value):
-        # Runs Django's configured password validators (length, common
-        # password check, numeric-only check, etc. — whatever you have in
-        # AUTH_PASSWORD_VALIDATORS in settings.py).
-        validate_password(value, user=self.context['request'].user)
-        return value
- 
     def validate(self, attrs):
         if attrs['current_password'] == attrs['new_password']:
             raise serializers.ValidationError({
@@ -362,21 +355,21 @@ class LogSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="log_id", read_only=True)
     class Meta:
         model = Log
-        fields = ["id", "comments", "date", "respect", "behavior", "attendance"]
+        fields = ["id", "comments", "date", "respect", "behavior", "attendance","hw_prep","lesson_prog","lesson_prog_comments","hw_prep_comments","next_lesson"]
     
 class PerformanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Log
-        fields = ["respect", "behavior", "attendance", "date"]
+        fields = ["respect", "behavior", "attendance","hw_prep","lesson_prog", "date"]
 
 def calculate_score(respect, participation, hw_prep, lesson_prog, attendance):
     def shifted(value):
         return (value - 1) if value is not None else 0
 
-    respect_score = shifted(respect)
-    participation_score = shifted(participation)
-    hw_prep_score = shifted(hw_prep)
-    lesson_prog_score = shifted(lesson_prog)
-    attendance_score = 1 if attendance == 0 else 0
+    respect_score = shifted(respect) #0 - 2
+    participation_score = shifted(participation) #0 - 2
+    hw_prep_score = shifted(hw_prep) #0 - 2
+    lesson_prog_score = shifted(lesson_prog) #0 - 2
+    attendance_score = 1 if attendance == 0 else 0 #0 - 1
 
     return respect_score + participation_score + hw_prep_score + lesson_prog_score + attendance_score

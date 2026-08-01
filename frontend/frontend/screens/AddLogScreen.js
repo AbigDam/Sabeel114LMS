@@ -202,7 +202,7 @@ export default function AddLogScreen({ navigation, route }) {
       lesson_prog: newLog.lessonProgress,
       lesson_prog_comments: newLog.lessonProgressComments ?? '',
       next_lesson: newLog.nextLesson ?? '',
-      additional_comments: newLog.additionalComments ?? '',
+      comments: newLog.additionalComments ?? '',
     };
 
     try {
@@ -231,7 +231,7 @@ export default function AddLogScreen({ navigation, route }) {
       lesson_prog: updatedFields.lessonProgress,
       lesson_prog_comments: updatedFields.lessonProgressComments ?? '',
       next_lesson: updatedFields.nextLesson ?? '',
-      additional_comments: updatedFields.additionalComments ?? '',
+      comments: updatedFields.additionalComments ?? '',
     };
 
     try {

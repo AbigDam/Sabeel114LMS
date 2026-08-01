@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiCall } from '../api.js';
 import BarChart from './BarChart';
-import { computeScore, isPresent, scoreToCategory } from '../utils/score';
+import { computeScore, isPresent, scoreToCategory, SCORE_MAX } from '../utils/score';
 import { colors, fontFamilies } from '../constants/theme';
 
 const BRONZE = {
@@ -18,16 +18,25 @@ const BRONZE = {
 };
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const SCORE_MAX = 6; // scores are always on a 0-6 scale
 
-// Returns YYYY-MM-DD for the Monday of the current week
-function getCurrentWeekMonday() {
-  const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
+// Returns YYYY-MM-DD for the Monday of the week containing `date`
+function getMondayOf(date) {
+  const day = date.getDay(); // 0 = Sunday
   const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday);
+  const monday = new Date(date);
+  monday.setDate(date.getDate() + diffToMonday);
   return monday.toISOString().slice(0, 10);
+}
+
+function getCurrentWeekMonday() {
+  return getMondayOf(new Date());
+}
+
+// Add `days` days to a YYYY-MM-DD string, return YYYY-MM-DD
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 function formatShortDate(dateStr) {
@@ -35,11 +44,30 @@ function formatShortDate(dateStr) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+// "Jan 5 - Jan 11" style range label for the header
+function formatWeekRange(startDateStr) {
+  const start = new Date(startDateStr + 'T00:00:00');
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const opts = { month: 'short', day: 'numeric' };
+  return `${start.toLocaleDateString(undefined, opts)} \u2013 ${end.toLocaleDateString(undefined, opts)}`;
+}
+
 export default function ParentStudentCard({ student }) {
   const [expanded, setExpanded] = useState(false);
+
+  // Which week is currently being viewed (Monday, YYYY-MM-DD). Defaults to
+  // the real current week; only changes via the prev/next arrows.
+  const currentWeekMonday = getCurrentWeekMonday();
+  const [weekStart, setWeekStart] = useState(currentWeekMonday);
+
   const [weekLoading, setWeekLoading] = useState(false);
-  const [weekData, setWeekData] = useState(null);
   const [weekError, setWeekError] = useState(null);
+
+  // Cache of already-fetched weeks, keyed by start date, so paging back and
+  // forth doesn't re-hit the API for weeks we've already loaded.
+  const weekCache = useRef({});
+  const [, forceRender] = useState(0); // bump to re-render after cache writes
 
   const [perfLoading, setPerfLoading] = useState(true);
   const [perfData, setPerfData] = useState([]);
@@ -66,31 +94,55 @@ export default function ParentStudentCard({ student }) {
     loadPerformance();
   }, [student.id]);
 
-  async function toggleExpanded() {
-    const next = !expanded;
-    setExpanded(next);
-    if (next && !weekData) {
-      setWeekLoading(true);
-      setWeekError(null);
-      try {
-        const startDate = getCurrentWeekMonday();
-        const data = await apiCall(
-          'get',
-          `parent/students/${student.id}/week/?start_date=${startDate}`
-        );
-        setWeekData(data);
-      } catch (error) {
-        console.error(error);
-        setWeekError('Could not load this week\u2019s calendar.');
-      } finally {
-        setWeekLoading(false);
-      }
+  async function fetchWeek(startDate) {
+    setWeekLoading(true);
+    setWeekError(null);
+    try {
+      const data = await apiCall(
+        'get',
+        `parent/students/${student.id}/week/?start_date=${startDate}`
+      );
+      weekCache.current[startDate] = data;
+      forceRender((n) => n + 1);
+    } catch (error) {
+      console.error(error);
+      setWeekError('Could not load this week\u2019s calendar.');
+    } finally {
+      setWeekLoading(false);
     }
   }
 
-  // Build chart data: bar height uses the raw 0-6 score, but the label
-  // shown to the parent is a category (Excellent / Good / Needs Improvement)
-  // rather than the number itself.
+  function toggleExpanded() {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !weekCache.current[weekStart]) {
+      fetchWeek(weekStart);
+    }
+  }
+
+  function goToPreviousWeek() {
+    const prevStart = addDays(weekStart, -7);
+    setWeekStart(prevStart);
+    if (!weekCache.current[prevStart]) {
+      fetchWeek(prevStart);
+    }
+  }
+
+  function goToNextWeek() {
+    if (weekStart === currentWeekMonday) return; // already at the newest allowed week
+    const nextStart = addDays(weekStart, 7);
+    setWeekStart(nextStart);
+    if (!weekCache.current[nextStart]) {
+      fetchWeek(nextStart);
+    }
+  }
+
+  const isAtCurrentWeek = weekStart === currentWeekMonday;
+  const weekData = weekCache.current[weekStart] || null;
+
+  // Build chart data: bar height uses the raw score, but the label shown to
+  // the parent is a category (Excellent / Good / Needs Improvement) rather
+  // than the number itself.
   const chartData = perfData.map((d) => {
     const score = computeScore(d);
     const { label, color } = scoreToCategory(score);
@@ -133,17 +185,40 @@ export default function ParentStudentCard({ student }) {
           <>
             <BarChart data={chartData} maxValue={SCORE_MAX} />
             <Text style={styles.scaleNote}>
-              Daily performance is scored on a scale of 0 to {SCORE_MAX}, shown here as
-              Needs Improvement, Good, or Excellent.
+              Daily performance is shown as either Needs Improvement, Good, or Excellent.
             </Text>
           </>
         )}
       </View>
 
-      {/* Expandable current-week calendar */}
+      {/* Expandable week calendar, with prev/next navigation */}
       {expanded && (
         <View style={styles.weekSection}>
-          <Text style={styles.chartSectionLabel}>This Week</Text>
+          <View style={styles.weekNavRow}>
+            <Pressable onPress={goToPreviousWeek} hitSlop={10} style={styles.weekNavBtn}>
+              <Ionicons name="chevron-back" size={20} color={BRONZE.bronzeAccent} />
+            </Pressable>
+
+            <View style={styles.weekNavCenter}>
+              <Text style={styles.chartSectionLabel}>
+                {isAtCurrentWeek ? 'This Week' : formatWeekRange(weekStart)}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={goToNextWeek}
+              hitSlop={10}
+              style={styles.weekNavBtn}
+              disabled={isAtCurrentWeek}
+            >
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={isAtCurrentWeek ? BRONZE.borderLight : BRONZE.bronzeAccent}
+              />
+            </Pressable>
+          </View>
+
           {weekLoading ? (
             <ActivityIndicator color={BRONZE.bronzeBright} style={{ marginVertical: 20 }} />
           ) : weekError ? (
@@ -212,6 +287,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: BRONZE.borderLight,
     paddingTop: 18,
+  },
+  weekNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  weekNavBtn: {
+    padding: 4,
+  },
+  weekNavCenter: {
+    flex: 1,
+    alignItems: 'center',
   },
   weekGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   dayCell: {
