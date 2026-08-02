@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 
 const ROLES = [
   { value: 'Teacher', label: 'Teacher', icon: 'school-outline' },
+  { value: 'Parent', label: 'Parent', icon: 'people-outline' },
 ];
 
 export default function SignupScreen({ navigation }) {
@@ -52,6 +53,10 @@ export default function SignupScreen({ navigation }) {
 
     if (!role) {
       next.role = 'Please choose an account type.';
+    }
+
+    if(role === 'Teacher' && !trimmedEmail.endsWith('@sabeel114.com')) {
+      next.email = 'Teachers must use a @sabeel114.com email address.';
     }
 
     return next;
@@ -139,7 +144,7 @@ async function handleSignup() {
         iconName="mail-outline"
         value={email}
         onChangeText={setEmail}
-        placeholder="you@example.com"
+        placeholder={role === 'Teacher' ? 'you@sabeel114.com' : 'you@example.com'}
         error={errors.email}
         keyboardType="email-address"
         autoCapitalize="none"

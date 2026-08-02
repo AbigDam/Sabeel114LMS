@@ -61,7 +61,7 @@ function isAbsentLog(log) {
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
-function LogDetailView({ log, viewHistory }) {
+function LogDetailView({ log }) {
   const absent = isAbsentLog(log);
 
   return (
@@ -116,11 +116,6 @@ function LogDetailView({ log, viewHistory }) {
           </>
         )}
       </View>
-
-      <TouchableOpacity style={styles.viewHistoryBtn} onPress={viewHistory}>
-        <Ionicons name="time-outline" size={17} color={colors.textOnPrimary} style={{ marginRight: spacing.xs }} />
-        <Text style={styles.viewHistoryBtnText}>View/Edit Log History</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -359,12 +354,14 @@ export default function AddLogScreen({ navigation, route }) {
               } : undefined}
             />
           ) : (
-            <LogDetailView
-              log={todayLog}
-              viewHistory={() => setViewingHistory(true)}
-            />
+            <LogDetailView log={todayLog} />
           )}
         </View>
+
+        <TouchableOpacity style={styles.viewHistoryBtn} onPress={() => setViewingHistory(true)}>
+          <Ionicons name="time-outline" size={17} color={colors.textOnPrimary} style={{ marginRight: spacing.xs }} />
+          <Text style={styles.viewHistoryBtnText}>View/Edit Log History</Text>
+        </TouchableOpacity>
 
         {(addingLog || editingLogId) && (
           <TouchableOpacity
