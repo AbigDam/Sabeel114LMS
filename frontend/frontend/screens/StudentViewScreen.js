@@ -8,6 +8,10 @@
 // bottom of file for the screens + backend endpoints this file assumes exist):
 //   navigation.navigate('AddStudentToClass', { course })
 //   navigation.navigate('AddTeacherToClass', { course })
+//
+// Add/remove actions (add teacher, add student, remove teacher, remove
+// student) are only available to superusers. This is determined by calling
+// GET /current_user/ and checking the `is_superuser` field on the response.
 // -----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useState } from 'react';
@@ -112,6 +116,26 @@ export default function StudentView({ route, navigation }) {
   const [error, setError]       = useState(null);
   const [search, setSearch]     = useState('');
 
+  // Permissions — only superusers can add/remove teachers or students.
+  const [isSuperuser, setIsSuperuser] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // ------------------------------------------------------------------
+  // Fetch current user (for permission checks)
+  // ------------------------------------------------------------------
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const res = await api.get('/current_user/');
+      setIsSuperuser(Boolean(res.data?.is_superuser));
+    } catch (err) {
+      console.error(err);
+      // Fail closed: if we can't confirm superuser status, hide privileged actions.
+      setIsSuperuser(false);
+    } finally {
+      setPermissionsLoaded(true);
+    }
+  }, []);
+
   // ------------------------------------------------------------------
   // Fetch roster (students + teachers together)
   // ------------------------------------------------------------------
@@ -134,6 +158,10 @@ export default function StudentView({ route, navigation }) {
   }, [course.id]);
 
   useEffect(() => {
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
+
+  useEffect(() => {
     fetchRoster();
   }, [fetchRoster]);
 
@@ -142,14 +170,21 @@ export default function StudentView({ route, navigation }) {
   useFocusEffect(
     useCallback(() => {
       fetchRoster();
-    }, [fetchRoster]),
+      fetchCurrentUser();
+    }, [fetchRoster, fetchCurrentUser]),
   );
 
   // ------------------------------------------------------------------
   // Remove handlers (optimistic update + rollback on failure)
   // ------------------------------------------------------------------
   const removeStudent = useCallback(async (student) => {
-    const confirmed = true;
+    if (!isSuperuser) return;
+
+    const confirmed = await confirmAsync(
+      'Remove student',
+      `Remove ${fullNameOf(student)} from this class?`,
+    );
+    if (!confirmed) return;
 
     const previous = students;
     setStudents(prev => prev.filter(s => s.id !== student.id));
@@ -160,10 +195,16 @@ export default function StudentView({ route, navigation }) {
       setStudents(previous);
       Alert.alert('Something went wrong', 'Could not remove that student. Please try again.');
     }
-  }, [course, students]);
+  }, [course, students, isSuperuser]);
 
   const removeTeacher = useCallback(async (teacher) => {
-    const confirmed = true;
+    if (!isSuperuser) return;
+
+    const confirmed = await confirmAsync(
+      'Remove teacher',
+      `Remove ${fullNameOf(teacher)} from this class?`,
+    );
+    if (!confirmed) return;
 
     const previous = teachers;
     setTeachers(prev => prev.filter(t => t.id !== teacher.id));
@@ -174,7 +215,7 @@ export default function StudentView({ route, navigation }) {
       setTeachers(previous);
       Alert.alert('Something went wrong', 'Could not remove that teacher. Please try again.');
     }
-  }, [course, teachers]);
+  }, [course, teachers, isSuperuser]);
 
   // ------------------------------------------------------------------
   // Search filter (students only)
@@ -193,14 +234,16 @@ export default function StudentView({ route, navigation }) {
       {/* Teachers */}
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>Teachers</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('AddTeacherToClass', { course })}
-          hitSlop={8}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.addBtnText}>Add teacher</Text>
-        </TouchableOpacity>
+        {isSuperuser ? (
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => navigation.navigate('AddTeacherToClass', { course })}
+            hitSlop={8}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.addBtnText}>Add teacher</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {teachers.length === 0 ? (
@@ -211,7 +254,7 @@ export default function StudentView({ route, navigation }) {
             key={String(teacher.id ?? teacher._id)}
             person={teacher}
             subtitle={teacher.subject ?? teacher.role ?? null}
-            onRemove={() => removeTeacher(teacher)}
+            onRemove={isSuperuser ? () => removeTeacher(teacher) : undefined}
             removeLabel="Remove teacher"
           />
         ))
@@ -222,14 +265,16 @@ export default function StudentView({ route, navigation }) {
       {/* Students section title + add */}
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>Students</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('AddStudentToClass', { course })}
-          hitSlop={8}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.addBtnText}>Add student</Text>
-        </TouchableOpacity>
+        {isSuperuser ? (
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => navigation.navigate('AddStudentToClass', { course })}
+            hitSlop={8}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.addBtnText}>Add student</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Search bar */}
@@ -289,7 +334,7 @@ export default function StudentView({ route, navigation }) {
               person={item}
               subtitle={item.level ?? null}
               onPress={() => navigation.navigate('AddLog', { course: course, student: item })}
-              onRemove={() => removeStudent(item)}
+              onRemove={isSuperuser ? () => removeStudent(item) : undefined}
               removeLabel="Remove student"
             />
           )}
@@ -482,17 +527,3 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
-
-// -----------------------------------------------------------------------------
-// NOTES — new backend endpoints this screen assumes (see chat reply for detail)
-// -----------------------------------------------------------------------------
-// GET    /select_teachers/<course_id>/            -> list teachers on the class
-// POST   /remove_student/<course_id>/  {student_id}-> unenroll a student
-// POST   /remove_teacher/<course_id>/  {teacher_id}-> unassign a teacher
-// GET    /students/                                -> all students (for AddStudentToClass picker)
-// GET    /teachers/                                -> all teachers (for AddTeacherToClass picker)
-// POST   /add_student/<course_id>/     {student_id}-> enroll a student
-// POST   /add_teacher/<course_id>/     {teacher_id}-> assign a teacher
-// (Add-student/add-teacher POST endpoints are called from the picker screens,
-// not from this file.)
-// -----------------------------------------------------------------------------

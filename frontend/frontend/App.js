@@ -232,6 +232,7 @@ export default function App() {
                   // the appropriate view internally based on user.role.
                   <> 
                   <Stack.Screen name="Dashboard" component={DashboardScreen} />
+                  <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
                   </>
                 )
               ) : (
