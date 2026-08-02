@@ -327,7 +327,7 @@ class SpecificParentSerializer(serializers.ModelSerializer):
                 "first_name": student.first_name,
                 "last_name": student.last_name,
             }
-            for student in students
+            for student in children
         ]
 
     def get_temp_password(self, obj):
