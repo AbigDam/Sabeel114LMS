@@ -149,7 +149,7 @@ function CommentRow({ label, value }) {
 // ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
-export default function AddLogScreen({ navigation, route }) {
+export default function AddLogScreen({navigation, route }) {
   const { course, student } = route.params ?? {};
   const className = course?.title;
 

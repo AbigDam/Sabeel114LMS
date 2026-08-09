@@ -154,7 +154,7 @@ function AdminBar({ navigation }) {
           onPress={() => navigation.navigate('UserList')}
         >
           <Ionicons name="people-circle-outline" size={17} color={ADMIN_COLORS.text} />
-          <Text style={styles.adminBarLinkText}>User List</Text>
+          <Text style={styles.adminBarLinkText}>Manage Users</Text>
         </Pressable>
 
 

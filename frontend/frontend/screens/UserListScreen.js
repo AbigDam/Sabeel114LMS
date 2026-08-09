@@ -210,6 +210,20 @@ export default function UserListScreen({ navigation }) {
         ))}
       </View>
 
+      {/* Add User Button */}
+      <View style={styles.addUserButtonWrap}>
+        <TouchableOpacity
+          style={styles.addUserButton}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('CreateUser', { type: activeTab })}
+          accessibilityRole="button"
+          accessibilityLabel={`Add ${tabConfig.label.slice(0, -1).toLowerCase()}`}
+        >
+          <Ionicons name="person-add-outline" size={16} color={colors.textOnPrimary} />
+          <Text style={styles.addUserButtonText}>Add {tabConfig.label.slice(0, -1)}</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Search bar */}
       <View style={styles.searchWrap}>
         <Ionicons name="search" size={16} color={colors.textMuted} style={styles.searchIcon} />
@@ -321,6 +335,29 @@ const styles = StyleSheet.create({
   },
   tabBtnTextActive: {
     color: '#fff',
+  },
+
+  // Add User
+  addUserButtonWrap: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+  },
+  addUserButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary,
+    ...shadow.sm,
+  },
+  addUserButtonText: {
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: 13,
+    color: colors.textOnPrimary,
   },
 
   // Search

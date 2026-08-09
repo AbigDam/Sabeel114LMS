@@ -126,7 +126,7 @@ const RESPECT_OPTIONS = [
 // AddLogForm
 // ---------------------------------------------------------------------------
 export function AddLogForm({ onSubmit, initialData, skipAttendanceStep = false }) {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(skipAttendanceStep ? 2 : 1);
 
   const [attendance, setAttendance] = useState(
     initialData?.attendance ?? 'Present'
@@ -294,8 +294,8 @@ export function AddLogForm({ onSubmit, initialData, skipAttendanceStep = false }
           />
 
           <View style={[s.row, { marginTop: spacing.xl }]}>
-            <OutlineButton label="← Back" onPress={handleBack} />
-            <View style={{ flex: 2 }}>
+            {!skipAttendanceStep && <OutlineButton label="← Back" onPress={handleBack} />}
+            <View style={{ flex: skipAttendanceStep ? 2 : 1, width: skipAttendanceStep ? '100%': undefined }}>
               <PrimaryButton label="Next →" onPress={() => setCurrentStep(3)} />
             </View>
           </View>

@@ -825,7 +825,6 @@ class BulkCreateClasses(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-
 class CreateClassAccounts(APIView):
     def post(self, request):
         data = request.data
@@ -935,7 +934,7 @@ class CreateClassAccounts(APIView):
 
             student_ids.append(student.id)
 
-        classroom.students.extend(student_ids)
+        classroom.students = list(set((classroom.students or []) + student_ids))
         classroom.save()
 
         return Response({"created": created_accounts}, status=status.HTTP_201_CREATED)

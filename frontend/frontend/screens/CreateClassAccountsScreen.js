@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '../api.js';
 import { Dropdown } from 'react-native-element-dropdown';
+import { Button } from 'react-native-web';
 const BRONZE_COLORS = {
   bronzeDeep: '#2A3820',
   bronzeBright: '#4D5E35',
@@ -95,6 +96,8 @@ function ModeToggle({ mode, onChange, existingLabel = 'Choose Existing', newLabe
 
 export default function CreateClassAccountsScreen({ navigation }) {
   // --- Class fields ---
+  const [classMode, setClassMode] = useState('new'); // 'existing' | 'new'
+  const [selectedClassId, setSelectedClassId] = useState(null);
   const [className, setClassName] = useState('');
   const [gender, setGender] = useState('');
 
@@ -102,6 +105,7 @@ export default function CreateClassAccountsScreen({ navigation }) {
   const [teachersList, setTeachersList] = useState([]);
   const [parentsList, setParentsList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
+  const [classesList, setClassesList] = useState([]);
 
   // --- Form entries ---
   const [teachers, setTeachers] = useState([emptyTeacherEntry()]);
@@ -117,6 +121,7 @@ export default function CreateClassAccountsScreen({ navigation }) {
   const [result, setResult] = useState(null); // holds created accounts after success
 
   useEffect(() => {
+    
     async function loadTeachers() {
       try {
         const response = await api.get('/teachers/');
@@ -144,9 +149,19 @@ export default function CreateClassAccountsScreen({ navigation }) {
       }
     }
 
+    async function loadClasses() {
+      try {
+        const response = await api.get('/select_classes/');
+        setClassesList(response.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     loadTeachers();
     loadParents();
     loadStudents();
+    loadClasses();
   }, []);
 
   // --- Debounced existence check for every typed (mode: 'new') entry ---
@@ -278,6 +293,19 @@ export default function CreateClassAccountsScreen({ navigation }) {
     }
   }
 
+  // --- Class handlers ---
+  function setClassModeAndReset(mode) {
+    setClassMode(mode);
+    setSelectedClassId(null);
+    setClassName('');
+  }
+
+  function selectExistingClass(classId) {
+    setSelectedClassId(classId);
+    const picked = classesList.find((c) => c.id === classId);
+    setClassName(picked ? picked.title : '');
+  }
+
   // --- Teacher entry handlers ---
   function updateTeacherField(index, field, value) {
     setTeachers((prev) => {
@@ -318,6 +346,29 @@ export default function CreateClassAccountsScreen({ navigation }) {
       next[index] = { ...next[index], mode, exists: undefined };
       return next;
     });
+  }
+
+  // Picking an existing student pulls in their already-linked parent(s) so
+  // staff don't have to re-add parents that are already on file.
+  async function selectExistingStudent(index, studentId) {
+    updateStudentField(index, 'student_id', studentId);
+    if (!studentId) return;
+
+    try {
+      const response = await api.get(`/students/${studentId}/`);
+      const parents = (response.data?.parents || []).map((p) => ({
+        mode: 'existing',
+        parent_id: p.id,
+        exists: true,
+      }));
+      setStudents((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], parents };
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function addStudentRow() {
@@ -396,7 +447,10 @@ export default function CreateClassAccountsScreen({ navigation }) {
 
   function validate() {
     const newErrors = {};
-    if (!className.trim()) newErrors.className = 'Class name is required.';
+    if (!className.trim()) {
+      newErrors.className =
+        classMode === 'existing' ? 'Select a class, or switch to "Enter New".' : 'Class name is required.';
+    }
 
     const teacherErrors = teachers.map((t) => {
       const err = {};
@@ -548,30 +602,63 @@ export default function CreateClassAccountsScreen({ navigation }) {
         </View>
 
         <View style={styles.card}>
-          <Field
-            label="Class Name"
-            value={className}
-            onChangeText={setClassName}
-            placeholder="e.g. Quran Memorization A"
-            error={errors.className}
+          <ModeToggle
+            mode={classMode}
+            onChange={setClassModeAndReset}
+            existingLabel="Choose Existing"
+            newLabel="Create New"
           />
-          <View style={styles.row2Item}>
-            <Dropdown
-              style={styles.dropdown}
-              placeholderStyle={styles.dropdownPlaceholder}
-              selectedTextStyle={styles.dropdownSelected}
-              itemTextStyle={styles.dropdownItem}
-              data={[
-                { label: 'Male', value: true },
-                { label: 'Female', value: false },
-              ]}
-              labelField="label"
-              valueField="value"
-              placeholder="Select a gender..."
-              value={gender}
-              onChange={(item) => setGender(item.value)}
+
+          {classMode === 'existing' ? (
+            <View style={styles.fieldGroup}>
+              <Dropdown
+                style={styles.dropdown}
+                placeholderStyle={styles.dropdownPlaceholder}
+                selectedTextStyle={styles.dropdownSelected}
+                itemTextStyle={styles.dropdownItem}
+                search
+                searchPlaceholder="Search classes..."
+                maxHeight={400}
+                data={classesList.map((cls) => ({
+                  label: cls.title,
+                  value: cls.id,
+                }))}
+                labelField="label"
+                valueField="value"
+                placeholder="Select a class..."
+                value={selectedClassId}
+                onChange={(item) => selectExistingClass(item.value)}
+              />
+              {errors.className ? <Text style={styles.fieldErrorText}>{errors.className}</Text> : null}
+            </View>
+          ) : (
+            <Field
+              label="Class Name"
+              value={className}
+              onChangeText={setClassName}
+              placeholder="e.g. Quran Memorization A"
+              error={errors.className}
             />
-          </View>
+          )}
+          {classMode === 'new' && (
+            <View style={styles.row2Item}>
+              <Dropdown
+                style={styles.dropdown}
+                placeholderStyle={styles.dropdownPlaceholder}
+                selectedTextStyle={styles.dropdownSelected}
+                itemTextStyle={styles.dropdownItem}
+                data={[
+                  { label: 'Male', value: true },
+                  { label: 'Female', value: false },
+                ]}
+                labelField="label"
+                valueField="value"
+                placeholder="Select a gender..."
+                value={gender}
+                onChange={(item) => setGender(item.value)}
+              />
+            </View>
+          )}
         </View>
 
         {/* Teachers */}
@@ -727,7 +814,7 @@ export default function CreateClassAccountsScreen({ navigation }) {
                     valueField="value"
                     placeholder="Select a student..."
                     value={s.student_id}
-                    onChange={(item) => updateStudentField(index, 'student_id', item.value)}
+                    onChange={(item) => selectExistingStudent(index, item.value)}
                   />
                   {rowError.student_id ? <Text style={styles.fieldErrorText}>{rowError.student_id}</Text> : null}
                 </>
