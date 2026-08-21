@@ -319,8 +319,11 @@ class SpecificParentSerializer(serializers.ModelSerializer):
         children = []
         students = User.objects.filter(role = 2)
         for student in students:
-            if parent_id in student.parents:
-                children.append(student)
+            if student.parents:
+                if parent_id in student.parents:
+                    children.append(student)
+            else:
+                return []
         return [
             {
                 "id": student.id,
