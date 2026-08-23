@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -166,7 +168,7 @@ export default function AddLogScreen({navigation, route }) {
   const isTodayAbsent = isAbsentLog(todayLog);
 
   // Show the form when: no log today, OR teacher clicked Edit on a history row, OR teacher clicked "Add Log".
-  const showForm = !todayLog || !!editingLogId || addingLog;
+  const showForm = !todayLog || !!editingLogId //|| addingLog;
 
   const selectedStudent = student;
 
@@ -243,6 +245,23 @@ export default function AddLogScreen({navigation, route }) {
     }
   }
 
+  function confirmDeleteLog(logId) {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this log? This action cannot be undone.')) {
+        handleDeleteLog(logId);
+      }
+      return;
+    }
+    Alert.alert(
+      'Delete Log',
+      'Are you sure you want to delete this log? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteLog(logId) },
+      ]
+    );
+  }
+
   async function handleDeleteLog(logId) {
     try {
       await apiCall('post', 'delete_log/', { data: { log_id: logId } });
@@ -300,13 +319,13 @@ export default function AddLogScreen({navigation, route }) {
               {showForm
                 ? editingLogId
                   ? `Editing log from ${editingLog?.date ?? ''}`
-                  : addingLog
+                 : addingLog
                     ? 'Adding a new log'
                     : 'No log yet — record now'
                 : "Today's session"}
             </Text>
 
-            {!showForm && (
+           {/*  {!showForm && (
               <View style={styles.inlineButtonRow}>
                 <TouchableOpacity
                   style={[
@@ -324,7 +343,7 @@ export default function AddLogScreen({navigation, route }) {
                   />
                 </TouchableOpacity>
               </View>
-            )}
+            )} */}
           </View>
 
           {!showForm && (
@@ -440,10 +459,11 @@ export default function AddLogScreen({navigation, route }) {
                             accessibilityLabel="Edit log"
                             style={styles.editLogBtn}
                           >
-                            <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+                          <Ionicons name="pencil-outline" size={18} color={colors.primary} />
                           </TouchableOpacity>
+                          
                           <TouchableOpacity
-                            onPress={() => handleDeleteLog(log.id)}
+                            onPress={() => confirmDeleteLog(log.id)}
                             hitSlop={8}
                             accessibilityRole="button"
                             accessibilityLabel="Delete log"
