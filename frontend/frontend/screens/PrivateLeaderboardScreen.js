@@ -419,6 +419,7 @@ export default function PrivateLeaderboardScreen({ navigation }) {
               <Text style={[styles.tableHeaderText, styles.colGender]}>Gender</Text>
             </View>
             <FlatList
+              style={{ flex: 1 }}
               data={visibleStudents}
               keyExtractor={(item) => String(item.id)}
               renderItem={renderTableRow}
@@ -427,6 +428,7 @@ export default function PrivateLeaderboardScreen({ navigation }) {
           </View>
         ) : (
           <FlatList
+            style={{ flex: 1 }}
             data={visibleStudents}
             keyExtractor={(item) => String(item.id)}
             renderItem={renderCard}
@@ -555,6 +557,7 @@ const styles = StyleSheet.create({
 
   /* Wide table layout */
   tableWrapper: {
+    flex: 1,
     backgroundColor: BRONZE.surfaceWhite,
     borderRadius: 14,
     borderWidth: 1,
