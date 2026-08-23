@@ -42,6 +42,7 @@ urlpatterns = [
     path("notifications/", UpdateNotificationsView.as_view(), name='notifications'),
     path("check_existing_accounts/", CheckExistingAccounts.as_view(), name='existingaccounts'),
     path("bulk_create_classes/", BulkCreateClasses.as_view(), name="bulk_create_classes"),
+    path("create_user/", CreateUserView.as_view(), name="create_user"),
     path("change_password/", ChangePassword.as_view(), name="change_password"),
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot_password"),
 

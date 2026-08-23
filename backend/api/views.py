@@ -287,6 +287,64 @@ class RegisterView(generics.CreateAPIView):
             'username': user.username,
         }, status=status.HTTP_201_CREATED)
 
+class CreateUserView(APIView):
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        role = request.data.get('role')
+        first_name = request.data.get('first_name')
+        last_name = request.data.get('last_name')
+        parent_ids = request.data.get('parent_ids', [])
+        email_notifications = request.data.get('email_notifications', False)
+        email = request.data.get('email', None)
+        gender = request.data.get('gender', None)
+        password = generate_temp_password()
+
+
+        child_ids = request.data.get('child_ids', []) 
+        class_ids = request.data.get('class_ids', [])
+
+        user = User.objects.create_user(
+            username=first_name + last_name,
+            email=email,
+            password=password,
+            temporary_passwords=password,
+            role=role,
+            parents = parent_ids,
+            email_notifications=email_notifications,
+            first_name=first_name,
+            last_name=last_name,
+            gender=gender,
+        )
+
+        if role == 2:  
+            for class_id in class_ids:
+                classroom = Classroom.objects.get(class_id=class_id)
+                if classroom.students is None:
+                    classroom.students = []
+                classroom.students.append(user.id)
+                classroom.save()
+
+        if role == 0:  
+            for child_id in child_ids:
+                child = User.objects.get(id=child_id)
+                if child.parents is None:
+                    child.parents = []
+                child.parents.append(user.id)
+                child.save()
+
+        if role == 1:  
+            for class_id in class_ids:
+                classroom = Classroom.objects.get(class_id=class_id)
+                if classroom.teachers is None:
+                    classroom.teachers = []
+                classroom.teachers.append(user.id)
+                classroom.save()
+
+        serializer  = UserSerializer(user)
+        return Response(serializer.data)
+        
 # Create Classroom
 class CreateClassView(generics.CreateAPIView):
     serializer_class = CreateClassSerializer

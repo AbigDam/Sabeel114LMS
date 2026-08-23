@@ -74,6 +74,18 @@ class RegisterSerializer(serializers.Serializer):
         )
         return user
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "temporary_passwords",
+        ]
+        
+
 class TeacherSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -84,6 +96,7 @@ class TeacherSerializer(serializers.ModelSerializer):
             "last_name",
         ]
         
+
 class ParentSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

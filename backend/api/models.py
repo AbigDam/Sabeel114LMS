@@ -5,11 +5,11 @@ from django.contrib.auth.models import AbstractUser
 class User(AbstractUser):
     id = models.BigAutoField(primary_key=True)
     role = models.IntegerField(null = True, blank = True) #Options:  0 - Parent, 1 - Teacher, 2 - Student
-    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    phone_number = models.CharField(max_length=15, blank=True, null=True)  # Not used yet
     parents = models.JSONField(list, blank=True, null=True) #List of user IDs (of parents)
     gender = models.BooleanField(null=True, blank=True) #True - Male, False - Female
     score = models.IntegerField(default=0, null=True, blank=True)
-    email_notifications = models.BooleanField(default=False)
+    email_notifications = models.BooleanField(default=False)  ## On by default in single create user page, but in bulk_create user page off by default
     temporary_passwords=models.CharField(max_length=255, blank=True, null=True) #Plaintext password set at bulk-creation time, for admin display only
 
 class Notification(models.Model):

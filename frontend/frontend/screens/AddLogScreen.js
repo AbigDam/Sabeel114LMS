@@ -322,7 +322,6 @@ export default function AddLogScreen({navigation, route }) {
                     color={colors.textOnPrimary}
                     style={{ marginRight: spacing.xs }}
                   />
-                  <Text style={styles.inlineRowBtnText}>Add Log</Text>
                 </TouchableOpacity>
               </View>
             )}

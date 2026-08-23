@@ -41,7 +41,7 @@ import UserDetailScreen from './screens/UserDetailScreen.js';
 import AddParentToStudentScreen from './screens/AddParentToStudentScreen.js';
 import AddChildToParentScreen from './screens/AddChildToParentScreen.js';
 import ChangePasswordScreen from './screens/ChangePasswordScreen.js';
-//import CreateUserScreen from './screens/CreateUserScreen.js';
+import CreateUserScreen from './screens/CreateUserScreen.js';
 
 import { AuthContext } from './context/AuthContext';
 import { colors, spacing, fonts, radii } from './constants/theme';
@@ -227,7 +227,7 @@ export default function App() {
                     <Stack.Screen name="AddParentToStudent" component={AddParentToStudentScreen} />
                     <Stack.Screen name="AddChildToParent" component={AddChildToParentScreen} />
                     <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
-                    {/* <Stack.Screen name="CreateUser" component={CreateUserScreen} /> */}
+                    <Stack.Screen name="CreateUser" component={CreateUserScreen} />
                   </>
                 ) : (
                   // Parent or Student — just the dashboard, which renders
