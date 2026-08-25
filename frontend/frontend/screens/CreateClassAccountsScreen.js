@@ -96,8 +96,6 @@ function ModeToggle({ mode, onChange, existingLabel = 'Choose Existing', newLabe
 
 export default function CreateClassAccountsScreen({ navigation }) {
   // --- Class fields ---
-  const [classMode, setClassMode] = useState('new'); // 'existing' | 'new'
-  const [selectedClassId, setSelectedClassId] = useState(null);
   const [className, setClassName] = useState('');
   const [gender, setGender] = useState('');
 
@@ -105,7 +103,6 @@ export default function CreateClassAccountsScreen({ navigation }) {
   const [teachersList, setTeachersList] = useState([]);
   const [parentsList, setParentsList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
-  const [classesList, setClassesList] = useState([]);
 
   // --- Form entries ---
   const [teachers, setTeachers] = useState([emptyTeacherEntry()]);
@@ -149,19 +146,9 @@ export default function CreateClassAccountsScreen({ navigation }) {
       }
     }
 
-    async function loadClasses() {
-      try {
-        const response = await api.get('/select_classes/');
-        setClassesList(response.data);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
     loadTeachers();
     loadParents();
     loadStudents();
-    loadClasses();
   }, []);
 
   // --- Debounced existence check for every typed (mode: 'new') entry ---
@@ -293,19 +280,6 @@ export default function CreateClassAccountsScreen({ navigation }) {
     }
   }
 
-  // --- Class handlers ---
-  function setClassModeAndReset(mode) {
-    setClassMode(mode);
-    setSelectedClassId(null);
-    setClassName('');
-  }
-
-  function selectExistingClass(classId) {
-    setSelectedClassId(classId);
-    const picked = classesList.find((c) => c.id === classId);
-    setClassName(picked ? picked.title : '');
-  }
-
   // --- Teacher entry handlers ---
   function updateTeacherField(index, field, value) {
     setTeachers((prev) => {
@@ -348,27 +322,15 @@ export default function CreateClassAccountsScreen({ navigation }) {
     });
   }
 
-  // Picking an existing student pulls in their already-linked parent(s) so
-  // staff don't have to re-add parents that are already on file.
-  async function selectExistingStudent(index, studentId) {
-    updateStudentField(index, 'student_id', studentId);
-    if (!studentId) return;
-
-    try {
-      const response = await api.get(`/students/${studentId}/`);
-      const parents = (response.data?.parents || []).map((p) => ({
-        mode: 'existing',
-        parent_id: p.id,
-        exists: true,
-      }));
-      setStudents((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], parents };
-        return next;
-      });
-    } catch (err) {
-      console.error(err);
-    }
+  // Existing students already have their parents on file. We don't manage
+  // parents for them here — that's handled separately on the student's own
+  // edit page — so selecting one just records the id.
+  function selectExistingStudent(index, studentId) {
+    setStudents((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], student_id: studentId, parents: [] };
+      return next;
+    });
   }
 
   function addStudentRow() {
@@ -448,8 +410,7 @@ export default function CreateClassAccountsScreen({ navigation }) {
   function validate() {
     const newErrors = {};
     if (!className.trim()) {
-      newErrors.className =
-        classMode === 'existing' ? 'Select a class, or switch to "Enter New".' : 'Class name is required.';
+      newErrors.className = 'Class name is required.';
     }
 
     const teacherErrors = teachers.map((t) => {
@@ -499,11 +460,14 @@ export default function CreateClassAccountsScreen({ navigation }) {
         ...(s.mode === 'existing'
           ? { student_id: s.student_id }
           : { first_name: s.first_name.trim(), last_name: s.last_name.trim() }),
-        parents: (s.parents || []).map((p) =>
-          p.mode === 'existing'
-            ? { parent_id: p.parent_id }
-            : { first_name: p.first_name.trim(), last_name: p.last_name.trim(), email: p.email.trim() }
-        ),
+        parents:
+          s.mode === 'existing'
+            ? []
+            : (s.parents || []).map((p) =>
+                p.mode === 'existing'
+                  ? { parent_id: p.parent_id }
+                  : { first_name: p.first_name.trim(), last_name: p.last_name.trim(), email: p.email.trim() }
+              ),
       })),
     };
 
@@ -602,63 +566,30 @@ export default function CreateClassAccountsScreen({ navigation }) {
         </View>
 
         <View style={styles.card}>
-          <ModeToggle
-            mode={classMode}
-            onChange={setClassModeAndReset}
-            existingLabel="Choose Existing"
-            newLabel="Create New"
+          <Field
+            label="Class Name"
+            value={className}
+            onChangeText={setClassName}
+            placeholder="e.g. Quran Memorization A"
+            error={errors.className}
           />
-
-          {classMode === 'existing' ? (
-            <View style={styles.fieldGroup}>
-              <Dropdown
-                style={styles.dropdown}
-                placeholderStyle={styles.dropdownPlaceholder}
-                selectedTextStyle={styles.dropdownSelected}
-                itemTextStyle={styles.dropdownItem}
-                search
-                searchPlaceholder="Search classes..."
-                maxHeight={400}
-                data={classesList.map((cls) => ({
-                  label: cls.title,
-                  value: cls.id,
-                }))}
-                labelField="label"
-                valueField="value"
-                placeholder="Select a class..."
-                value={selectedClassId}
-                onChange={(item) => selectExistingClass(item.value)}
-              />
-              {errors.className ? <Text style={styles.fieldErrorText}>{errors.className}</Text> : null}
-            </View>
-          ) : (
-            <Field
-              label="Class Name"
-              value={className}
-              onChangeText={setClassName}
-              placeholder="e.g. Quran Memorization A"
-              error={errors.className}
+          <View style={styles.row2Item}>
+            <Dropdown
+              style={styles.dropdown}
+              placeholderStyle={styles.dropdownPlaceholder}
+              selectedTextStyle={styles.dropdownSelected}
+              itemTextStyle={styles.dropdownItem}
+              data={[
+                { label: 'Male', value: true },
+                { label: 'Female', value: false },
+              ]}
+              labelField="label"
+              valueField="value"
+              placeholder="Select a gender..."
+              value={gender}
+              onChange={(item) => setGender(item.value)}
             />
-          )}
-          {classMode === 'new' && (
-            <View style={styles.row2Item}>
-              <Dropdown
-                style={styles.dropdown}
-                placeholderStyle={styles.dropdownPlaceholder}
-                selectedTextStyle={styles.dropdownSelected}
-                itemTextStyle={styles.dropdownItem}
-                data={[
-                  { label: 'Male', value: true },
-                  { label: 'Female', value: false },
-                ]}
-                labelField="label"
-                valueField="value"
-                placeholder="Select a gender..."
-                value={gender}
-                onChange={(item) => setGender(item.value)}
-              />
-            </View>
-          )}
+          </View>
         </View>
 
         {/* Teachers */}
@@ -841,98 +772,109 @@ export default function CreateClassAccountsScreen({ navigation }) {
                 </View>
               )}
 
-              {/* Parents */}
-              <View style={styles.parentsSection}>
-                <Text style={styles.fieldLabel}>Parents</Text>
+              {/* Parents — only editable for brand-new students. Existing
+                  students already have parents on file, managed from their
+                  own edit page. */}
+              {s.mode === 'new' ? (
+                <View style={styles.parentsSection}>
+                  <Text style={styles.fieldLabel}>Parents</Text>
 
-                {studentParents.length > 0 && (
-                  <View style={{ gap: 8, marginBottom: 12 }}>
-                    {studentParents.map((p, pi) => {
-                      const existingParentObj =
-                        p.mode === 'existing' ? parentsList.find((pl) => pl.id === p.parent_id) : null;
-                      const name =
-                        p.mode === 'existing' ? personLabel(existingParentObj) : `${p.first_name} ${p.last_name}`.trim();
-                      const email = p.mode === 'existing' ? existingParentObj?.username : p.email;
+                  {studentParents.length > 0 && (
+                    <View style={{ gap: 8, marginBottom: 12 }}>
+                      {studentParents.map((p, pi) => {
+                        const existingParentObj =
+                          p.mode === 'existing' ? parentsList.find((pl) => pl.id === p.parent_id) : null;
+                        const name =
+                          p.mode === 'existing' ? personLabel(existingParentObj) : `${p.first_name} ${p.last_name}`.trim();
+                        const email = p.mode === 'existing' ? existingParentObj?.username : p.email;
 
-                      return (
-                        <View key={pi} style={styles.parentRow}>
-                          <Ionicons name="person-circle-outline" size={18} color={BRONZE_COLORS.bronzeAccent} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.parentRowName}>{name || 'Parent'}</Text>
-                            {!!email && <Text style={styles.resultMeta}>{email}</Text>}
+                        return (
+                          <View key={pi} style={styles.parentRow}>
+                            <Ionicons name="person-circle-outline" size={18} color={BRONZE_COLORS.bronzeAccent} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.parentRowName}>{name || 'Parent'}</Text>
+                              {!!email && <Text style={styles.resultMeta}>{email}</Text>}
+                            </View>
+                            <ExistingBadge exists={p.mode === 'existing' ? true : p.exists} />
+                            <Pressable onPress={() => removeParentFromStudent(index, pi)} hitSlop={8}>
+                              <Ionicons name="close-circle" size={18} color={BRONZE_COLORS.textMuted} />
+                            </Pressable>
                           </View>
-                          <ExistingBadge exists={p.mode === 'existing' ? true : p.exists} />
-                          <Pressable onPress={() => removeParentFromStudent(index, pi)} hitSlop={8}>
-                            <Ionicons name="close-circle" size={18} color={BRONZE_COLORS.textMuted} />
-                          </Pressable>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-
-                <ModeToggle
-                  mode={s.parentDraftMode}
-                  onChange={(mode) => setParentDraftMode(index, mode)}
-                  existingLabel="Choose Existing"
-                  newLabel="Enter New"
-                />
-
-                {s.parentDraftMode === 'existing' ? (
-                  <Dropdown
-                    style={styles.dropdownSmall}
-                    placeholderStyle={styles.dropdownPlaceholder}
-                    selectedTextStyle={styles.dropdownSelected}
-                    itemTextStyle={styles.dropdownItem}
-                    data={availableParentsForDraft.map((p) => ({
-                      label: `${personLabel(p)}${p.username ? ` (${p.username})` : ''}`,
-                      value: p.id,
-                    }))}
-                    labelField="label"
-                    valueField="value"
-                    placeholder="+ Add a parent"
-                    value={null}
-                    onChange={(item) => addExistingParent(index, item.value)}
-                  />
-                ) : (
-                  <View>
-                    <View style={styles.row2}>
-                      <View style={styles.row2Item}>
-                        <Field
-                          label="Parent First Name"
-                          value={s.parentDraftFirstName}
-                          onChangeText={(v) => updateParentDraftField(index, 'parentDraftFirstName', v)}
-                          placeholder="First name"
-                        />
-                      </View>
-                      <View style={styles.row2Item}>
-                        <Field
-                          label="Parent Last Name"
-                          value={s.parentDraftLastName}
-                          onChangeText={(v) => updateParentDraftField(index, 'parentDraftLastName', v)}
-                          placeholder="Last name"
-                        />
-                      </View>
+                        );
+                      })}
                     </View>
-                    <Field
-                      label="Parent Email"
-                      value={s.parentDraftEmail}
-                      onChangeText={(v) => updateParentDraftField(index, 'parentDraftEmail', v)}
-                      placeholder="parent@example.com"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
+                  )}
+
+                  <ModeToggle
+                    mode={s.parentDraftMode}
+                    onChange={(mode) => setParentDraftMode(index, mode)}
+                    existingLabel="Choose Existing"
+                    newLabel="Enter New"
+                  />
+
+                  {s.parentDraftMode === 'existing' ? (
+                    <Dropdown
+                      style={styles.dropdownSmall}
+                      placeholderStyle={styles.dropdownPlaceholder}
+                      selectedTextStyle={styles.dropdownSelected}
+                      itemTextStyle={styles.dropdownItem}
+                      data={availableParentsForDraft.map((p) => ({
+                        label: `${personLabel(p)}${p.username ? ` (${p.username})` : ''}`,
+                        value: p.id,
+                      }))}
+                      labelField="label"
+                      valueField="value"
+                      placeholder="+ Add a parent"
+                      value={null}
+                      onChange={(item) => addExistingParent(index, item.value)}
                     />
-                    <Pressable
-                      style={[styles.addParentButton, !canAddNewParent && styles.primaryButtonDisabled]}
-                      onPress={() => addNewParent(index)}
-                      disabled={!canAddNewParent}
-                    >
-                      <Ionicons name="add-circle-outline" size={16} color={BRONZE_COLORS.bronzeBright} />
-                      <Text style={styles.addParentButtonText}>Add Parent</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
+                  ) : (
+                    <View>
+                      <View style={styles.row2}>
+                        <View style={styles.row2Item}>
+                          <Field
+                            label="Parent First Name"
+                            value={s.parentDraftFirstName}
+                            onChangeText={(v) => updateParentDraftField(index, 'parentDraftFirstName', v)}
+                            placeholder="First name"
+                          />
+                        </View>
+                        <View style={styles.row2Item}>
+                          <Field
+                            label="Parent Last Name"
+                            value={s.parentDraftLastName}
+                            onChangeText={(v) => updateParentDraftField(index, 'parentDraftLastName', v)}
+                            placeholder="Last name"
+                          />
+                        </View>
+                      </View>
+                      <Field
+                        label="Parent Email"
+                        value={s.parentDraftEmail}
+                        onChangeText={(v) => updateParentDraftField(index, 'parentDraftEmail', v)}
+                        placeholder="parent@example.com"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                      <Pressable
+                        style={[styles.addParentButton, !canAddNewParent && styles.primaryButtonDisabled]}
+                        onPress={() => addNewParent(index)}
+                        disabled={!canAddNewParent}
+                      >
+                        <Ionicons name="add-circle-outline" size={16} color={BRONZE_COLORS.bronzeBright} />
+                        <Text style={styles.addParentButtonText}>Add Parent</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.parentsSection}>
+                  <Text style={styles.fieldLabel}>Parents</Text>
+                  <Text style={styles.resultMeta}>
+                    This student's parents are already on file. Manage them from the student's own edit page.
+                  </Text>
+                </View>
+              )}
             </View>
           );
         })}
